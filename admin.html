@@ -642,10 +642,12 @@ function renderBookings() {
     const canPay = b.status === 'Payment Submitted';
     const canCancel = b.status !== 'Cancelled' && b.status !== 'Paid';
     let actions = '';
-    if (hasProof) actions += `<button class="action-btn btn-proof" onclick="openProofModal('${b.id}')"><i class="ti ti-photo"></i> View proof</button>`;
     if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
     if (b.status === 'Paid') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Payment Submitted')"><i class="ti ti-arrow-back-up"></i> Undo paid</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
+    const proofIcon = (hasProof && canPay)
+      ? `<button onclick="openProofModal('${b.id}')" title="View proof" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-photo" style="font-size:13px"></i></button>`
+      : '';
     return `
     <tr${b.status === 'Payment Submitted' ? ' class="needs-action"' : ''}>
       <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
@@ -655,7 +657,7 @@ function renderBookings() {
       <td style="font-size:12px">${esc(b.time_label)}</td>
       <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
       <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
-      <td>${statusBadge(b.status)}</td>
+      <td><span style="white-space:nowrap">${statusBadge(b.status)}${proofIcon}</span></td>
       <td style="text-align:center">${b.ai_checked
         ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:2px 7px"><i class="ti ti-robot" style="font-size:11px"></i>Checked</span>'
         : '<span style="font-size:11px;color:var(--text-faint)">—</span>'
