@@ -172,11 +172,11 @@
 
   <div class="container">
     <div class="tabs">
-      <button class="tab active" onclick="showTab('members')"><i class="ti ti-users"></i> Members</button>
-      <button class="tab" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
+      <button class="tab" onclick="showTab('members')"><i class="ti ti-users"></i> Members <span id="unverified-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
+      <button class="tab active" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
     </div>
 
-    <div id="tab-members">
+    <div id="tab-members" style="display:none">
       <div id="members-stats" class="stat-row"></div>
       <div class="toolbar">
         <input type="text" id="member-search" placeholder="Search by name or phone…" oninput="renderMembers()">
@@ -190,7 +190,7 @@
       </div>
     </div>
 
-    <div id="tab-bookings" style="display:none">
+    <div id="tab-bookings">
       <div id="bookings-stats" class="stat-row"></div>
       <div class="toolbar">
         <input type="text" id="booking-search" placeholder="Search by ref or name…" oninput="renderBookings()">
@@ -309,6 +309,14 @@ function updatePendingBadge() {
   badge.style.display = count > 0 ? 'inline' : 'none';
 }
 
+function updateUnverifiedBadge() {
+  const count = allMembers.filter(m => !m.is_verified).length;
+  const badge = document.getElementById('unverified-badge');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline' : 'none';
+}
+
 function startAutoRefresh() {
   if (refreshInterval) clearInterval(refreshInterval);
   refreshInterval = setInterval(async () => {
@@ -354,7 +362,7 @@ async function doLogin() {
     allBookings = await sbGet('bookings?select=*&order=created_at.desc');
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
-    renderMembersStats(); renderMembers();
+    renderMembersStats(); renderMembers(); updateUnverifiedBadge();
     renderBookingsStats(); renderBookings(); updatePendingBadge();
     startAutoRefresh();
   } catch(e) {
@@ -436,7 +444,7 @@ async function toggleVerify(phone, verified) {
   await sbPatch(`members?phone=eq.${encodeURIComponent(phone)}`, { is_verified: verified });
   const m = allMembers.find(x => x.phone === phone);
   if (m) m.is_verified = verified;
-  renderMembersStats(); renderMembers();
+  renderMembersStats(); renderMembers(); updateUnverifiedBadge();
 }
 
 function editMember(phone) {
@@ -672,7 +680,7 @@ async function init() {
     document.getElementById('admin-email').textContent = userEmail;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
-    renderMembersStats(); renderMembers();
+    renderMembersStats(); renderMembers(); updateUnverifiedBadge();
     renderBookingsStats(); renderBookings(); updatePendingBadge();
     startAutoRefresh();
   } catch(e) {
