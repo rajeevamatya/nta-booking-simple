@@ -1111,9 +1111,9 @@ async function submitPayment() {
     // Always await compression before uploading
     const f = S.paymentReady ? await S.paymentReady : null;
     if (f) {
-      await fetch(SCRIPT_URL, {
+      await fetch('/api/upload', {
         method:'POST',
-        headers:{'Content-Type':'text/plain'},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ action:'uploadPayment', ref:S.ref,
           fileData:f.data, fileName:f.name, mimeType:f.type })
       });
