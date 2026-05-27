@@ -568,8 +568,11 @@
       <div class="sec-sub">Select a date then choose 1 or 2 consecutive hourly slots.</div>
       <div class="card">
         <div class="field-group">
-          <label class="field-label" for="book-date"><i class="ti ti-calendar" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Date</label>
-          <input type="date" id="book-date" onchange="onDateChange()">
+          <label class="field-label"><i class="ti ti-calendar" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Date</label>
+          <div class="toggle-row">
+            <div class="toggle-btn selected" id="date-today" onclick="selDate('today')">Today</div>
+            <div class="toggle-btn" id="date-tomorrow" onclick="selDate('tomorrow')">Tomorrow</div>
+          </div>
           <div id="date-day-label" style="font-size:12px;color:var(--green-dark);font-weight:500;margin-top:6px;padding-left:2px;min-height:16px"></div>
         </div>
         <div class="field-group">
@@ -922,17 +925,18 @@ function updateDayLabel() {
   el.textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 async function initDate() {
-  const d=document.getElementById('book-date');
-  const today=new Date().toISOString().split('T')[0];
-  const tom=new Date(); tom.setDate(tom.getDate()+1);
-  const tomorrow=tom.toISOString().split('T')[0];
-  d.min=today; d.max=tomorrow; d.value=today;
-  S.date=today; S.slots=[]; S.court=null; S.bookings=[];
+  S.date=new Date().toISOString().split('T')[0];
+  S.slots=[]; S.court=null; S.bookings=[];
+  document.getElementById('date-today').classList.add('selected');
+  document.getElementById('date-tomorrow').classList.remove('selected');
   updateDayLabel(); hideCourts(); await fetchBookings(); renderSlots();
 }
-async function onDateChange() {
-  S.date=document.getElementById('book-date').value;
+async function selDate(which) {
+  const d=new Date(); if(which==='tomorrow') d.setDate(d.getDate()+1);
+  S.date=d.toISOString().split('T')[0];
   S.slots=[]; S.court=null; S.bookings=[];
+  document.getElementById('date-today').classList.toggle('selected', which==='today');
+  document.getElementById('date-tomorrow').classList.toggle('selected', which==='tomorrow');
   updateDayLabel(); hideCourts(); await fetchBookings(); renderSlots();
 }
 async function fetchBookings() {
