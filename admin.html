@@ -65,6 +65,9 @@
   tbody td { padding:11px 14px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border); }
   tbody tr:last-child td { border-bottom:none; }
   tbody tr:hover td { background:var(--green-light); }
+  tbody tr.needs-action td { background:#f0f6ff; }
+  tbody tr.needs-action td:first-child { box-shadow:inset 3px 0 0 #3b82f6; }
+  tbody tr.needs-action:hover td { background:#dbeafe; }
   .empty { padding:2.5rem;text-align:center;font-size:14px;color:var(--text-faint); }
 
   .badge { display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;letter-spacing:.02em; }
@@ -170,7 +173,7 @@
   <div class="container">
     <div class="tabs">
       <button class="tab active" onclick="showTab('members')"><i class="ti ti-users"></i> Members</button>
-      <button class="tab" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings</button>
+      <button class="tab" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
     </div>
 
     <div id="tab-members">
@@ -269,15 +272,53 @@ let allMembers = [];
 let allBookings = [];
 let proofModalBookingId = null;
 
+let refreshInterval = null;
+
 function sbHeaders(extra = {}) {
   return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...extra };
 }
 async function sbGet(path) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: sbHeaders() });
+  if (r.status === 401) { handleExpired(); return []; }
   return r.json();
 }
 async function sbPatch(path, body) {
-  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method:'PATCH', headers: sbHeaders({'Prefer':'return=minimal'}), body: JSON.stringify(body) });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method:'PATCH', headers: sbHeaders({'Prefer':'return=minimal'}), body: JSON.stringify(body) });
+  if (r.status === 401) { handleExpired(); }
+}
+
+function handleExpired() {
+  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+  sessionStorage.removeItem('nta_token');
+  sessionStorage.removeItem('nta_email');
+  accessToken = null; userEmail = '';
+  allMembers = []; allBookings = [];
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  const err = document.getElementById('login-err');
+  err.textContent = 'Session expired — please sign in again.';
+  err.style.display = 'block';
+}
+
+function updatePendingBadge() {
+  const count = allBookings.filter(b => b.status === 'Payment Submitted').length;
+  const badge = document.getElementById('pending-badge');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline' : 'none';
+}
+
+function startAutoRefresh() {
+  if (refreshInterval) clearInterval(refreshInterval);
+  refreshInterval = setInterval(async () => {
+    try {
+      const bookings = await sbGet('bookings?select=*&order=created_at.desc');
+      if (Array.isArray(bookings)) {
+        allBookings = bookings;
+        renderBookingsStats(); renderBookings(); updatePendingBadge();
+      }
+    } catch(e) {}
+  }, 60000);
 }
 
 async function doLogin() {
@@ -313,7 +354,8 @@ async function doLogin() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers();
-    renderBookingsStats(); renderBookings();
+    renderBookingsStats(); renderBookings(); updatePendingBadge();
+    startAutoRefresh();
   } catch(e) {
     err.textContent = 'Network error — check your connection.';
     err.style.display = 'block';
@@ -323,6 +365,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
   if (accessToken) {
     fetch(`${SUPABASE_URL}/auth/v1/logout`, {
       method: 'POST',
@@ -479,7 +522,7 @@ function renderBookings() {
     if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
     return `
-    <tr>
+    <tr${b.status === 'Payment Submitted' ? ' class="needs-action"' : ''}>
       <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
       <td>${esc(b.name)}<br><span style="font-size:11px;color:var(--text-muted)">${esc(b.phone)}</span></td>
       <td style="text-align:center;font-weight:600">Court ${b.court}</td>
@@ -626,7 +669,8 @@ async function init() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers();
-    renderBookingsStats(); renderBookings();
+    renderBookingsStats(); renderBookings(); updatePendingBadge();
+    startAutoRefresh();
   } catch(e) {
     sessionStorage.removeItem('nta_token');
     sessionStorage.removeItem('nta_email');
