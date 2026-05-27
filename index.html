@@ -445,6 +445,8 @@
 
   /* ── ERROR ── */
   .err { font-size: 12px; color: #dc2626; margin-top: 5px; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display:inline-block; animation: spin 0.8s linear infinite; }
 </style>
 </head>
 <body>
@@ -728,12 +730,8 @@
 
 <script>
 const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
-const KNOWN = {
-  '9841000001': { name:'Rohan Maharjan', nat:'np', ranked:true },
-  '9800111222': { name:'Priya Thapa', nat:'np', ranked:false },
-  '9851234567': { name:'James Miller', nat:'intl', ranked:true }
-};
 const NTA_WHATSAPP = '9779841000000';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
 
 let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles' };
 let timerInterval = null;
@@ -761,14 +759,31 @@ function genRef() {
   return 'NTA-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
 }
 
-function checkMobile() {
+async function checkMobile() {
   const v = document.getElementById('mobile-input').value.trim();
   const err = document.getElementById('mobile-err');
   if (!/^\d{10}$/.test(v)) { err.style.display='block'; return; }
   err.style.display='none';
   S.mobile = v;
-  if (KNOWN[v]) { S.user=KNOWN[v]; renderChip(); show('screen-booking'); initDate(); }
-  else { document.getElementById('reg-mobile').value=v; show('screen-register'); }
+  const btn = document.querySelector('#screen-login .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Checking…';
+  try {
+    const r = await fetch(`${SCRIPT_URL}?action=lookup&phone=${v}`);
+    const d = await r.json();
+    if (d.found) {
+      S.user = { name: d.name, nat: d.nat, ranked: d.ranked };
+      renderChip(); show('screen-booking'); initDate();
+    } else {
+      document.getElementById('reg-mobile').value = v;
+      show('screen-register');
+    }
+  } catch(e) {
+    err.textContent = 'Network error — please try again.';
+    err.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-arrow-right"></i> Continue';
 }
 
 function getPrice() {
@@ -794,13 +809,26 @@ function selRank(v) {
   document.getElementById('rank-yes').className='toggle-btn'+(v==='yes'?' selected':'');
   document.getElementById('rank-no').className='toggle-btn'+(v==='no'?' selected':'');
 }
-function doRegister() {
+async function doRegister() {
   const name=document.getElementById('reg-name').value.trim();
   if (!name) { document.getElementById('reg-err').style.display='block'; return; }
   document.getElementById('reg-err').style.display='none';
-  S.user={name, nat:S.nat, ranked:S.ranked==='yes'};
-  KNOWN[S.mobile]=S.user;
-  renderChip(); show('screen-booking'); initDate();
+  const btn = document.querySelector('#screen-register .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Registering…';
+  try {
+    const params = new URLSearchParams({ action:'register', phone:S.mobile,
+      name, nat:S.nat, ranked:String(S.ranked==='yes') });
+    await fetch(`${SCRIPT_URL}?${params}`);
+    S.user = { name, nat:S.nat, ranked:S.ranked==='yes' };
+    renderChip(); show('screen-booking'); initDate();
+  } catch(e) {
+    const regErr = document.getElementById('reg-err');
+    regErr.textContent = 'Network error — please try again.';
+    regErr.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-user-plus"></i> Register &amp; continue';
 }
 
 function renderChip() {
@@ -949,8 +977,21 @@ function clearCourt() {
   document.getElementById('select-hint').style.display='block';
 }
 
-function confirmBooking() {
+async function confirmBooking() {
   S.ref=genRef();
+  const btn = document.querySelector('#confirm-bar .btn-accent');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Confirming…';
+  // Save to sheet (best-effort — don't block user if it fails)
+  try {
+    const params = new URLSearchParams({ action:'book', ref:S.ref,
+      phone:S.mobile, name:S.user.name, court:S.court,
+      date:fmtDate(S.date), time:fmtRange(S.slots),
+      match:S.matchType==='singles'?'Singles':'Doubles', amount:getPrice() });
+    await fetch(`${SCRIPT_URL}?${params}`);
+  } catch(e) { console.warn('Sheet save failed:', e); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-check"></i> Confirm booking';
   document.getElementById('conf-ref').textContent=S.ref;
   document.getElementById('conf-court').textContent='Court '+S.court;
   document.getElementById('conf-date').textContent=fmtDate(S.date);
