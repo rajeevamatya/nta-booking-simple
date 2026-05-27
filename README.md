@@ -26,11 +26,12 @@ Online court booking system for **Nepal Tennis Association**. Members register, 
 
 ```
 nta/
-├── index.html          # User-facing booking app
-├── admin.html          # Admin panel (login-gated)
-├── favicon.svg         # Tennis ball SVG favicon
-├── vercel.json         # URL rewrites
-└── setup-settings.sql  # One-time SQL to run in Supabase
+├── index.html            # User-facing booking app
+├── admin.html            # Admin panel (login-gated)
+├── favicon.svg           # Tennis ball SVG favicon
+├── vercel.json           # URL rewrites
+├── setup-settings.sql    # One-time SQL — creates settings table
+└── add-ai-checked.sql    # Migration — adds ai_checked column to bookings
 ```
 
 ### URL Routing (`vercel.json`)
@@ -95,6 +96,7 @@ create table bookings (
   price       int  not null,
   status      text not null default 'Pending',
   proof_url   text,
+  ai_checked  boolean not null default false,
   created_at  timestamptz default now()
 );
 
@@ -116,6 +118,8 @@ create policy "anon_update_bookings" on bookings
 create policy "auth_all_bookings" on bookings
   for all to authenticated using (true) with check (true);
 ```
+
+> If you already created the `bookings` table without `ai_checked`, run `add-ai-checked.sql` to add it.
 
 #### `settings`
 
@@ -203,7 +207,7 @@ All other configuration (prices, opening hours, WhatsApp number, QR code, closur
     │
     ▼ returning member
 [Book a Court]
-    │  • Pick date (today or tomorrow only)
+    │  • Today / Tomorrow buttons (not a date picker)
     │  • Pick time slot
     │  • Pick court (Court 1 / Court 2)
     │  • Pick type (Singles / Doubles)
@@ -247,11 +251,13 @@ If the JWT expires mid-session, the next API call returns 401 and the admin is a
 |---|---|
 | Auto-refresh | Table polls every 60 s; red badge on the tab shows pending-proof count |
 | Row highlight | Blue left-border on rows requiring action (status = Payment Submitted) |
-| Filter | Dropdown: Last 30 days / Last 90 days / All time |
-| Proof modal | Click **View proof** to open image popup with approve/cancel/undo buttons |
-| Mark paid | Available on Payment Submitted rows (and inside the proof modal) |
+| Date filter | Today / Yesterday / Last 7 days / Last 30 days / All time — filters by court date |
+| Proof icon | Small 📷 icon next to the status badge on Payment Submitted and Paid rows; opens proof modal |
+| Proof modal | Full-size image popup with Mark paid / Undo paid / Cancel buttons |
+| Mark paid | Available on Payment Submitted rows |
 | Undo paid | Available on Paid rows — rolls status back to Payment Submitted |
 | Cancel | Available on non-final rows (Pending, Payment Submitted) |
+| AI column | Shows a green "Checked" badge when `ai_checked = true`, dash otherwise |
 | Export CSV | Choose 30 days / 90 days / All; downloads all booking fields |
 
 ### Members Tab
@@ -267,9 +273,9 @@ Four cards, each saved independently:
 | Card | Fields |
 |---|---|
 | **Opening Hours** | Open from / Open to (hourly, 00:00–23:00). Drives available time slots in the booking app. |
-| **Closure / Maintenance** | From date, To date, Custom message. Shows a banner on the booking app during the range. |
+| **Closure / Maintenance** | From date, To date, Custom message. Banner appears 7 days before closure starts and throughout the closure period. |
 | **Pricing** | Singles price (NPR), Doubles price (NPR) |
-| **Contact & Payment** | WhatsApp number (with country code, no `+`), QR code image upload |
+| **Contact & Payment** | WhatsApp number (with country code, no `+`), QR code image upload (any image format) |
 
 ---
 
@@ -277,7 +283,7 @@ Four cards, each saved independently:
 
 | Rule | Value |
 |---|---|
-| Booking window | Today and tomorrow only |
+| Booking window | Today and tomorrow only (two-button selector) |
 | Slot duration | 1 hour |
 | Available slots | Driven by `open_from` / `open_to` in settings (default 06:00–19:00) |
 | Courts | Court 1, Court 2 |
@@ -286,6 +292,17 @@ Four cards, each saved independently:
 | Double-booking prevention | None — admin resolves conflicts manually |
 
 **Example:** On May 28 a member can book any slot on May 28 or May 29. On May 29 they can book May 29 or May 30.
+
+---
+
+## Closure Banner
+
+The booking app shows a banner on the booking screen when a closure is configured:
+
+- **7 days before closure starts:** `"Upcoming closure from 10 Jun to 15 Jun: Courts are temporarily closed."`
+- **During the closure period:** `"Courts are temporarily closed."` (the configured message as-is)
+
+The banner is informational only — it does not block bookings.
 
 ---
 
@@ -325,12 +342,19 @@ vercel --prod
 ### First-Time Setup Checklist
 
 - [ ] Create a Supabase project
-- [ ] Run the three table SQL blocks above (or use `setup-settings.sql` for the settings table)
+- [ ] Run the `members` and `bookings` table SQL above (include `ai_checked` column)
+- [ ] Run `setup-settings.sql` for the settings table
 - [ ] Create the `payment-proofs` storage bucket (public) and apply the storage policies
 - [ ] Create an admin user via Supabase Auth → Users → Invite
 - [ ] Update `SUPABASE_URL` and `SUPABASE_KEY` in both `index.html` and `admin.html`
 - [ ] Deploy to Vercel
 - [ ] Open `/admin`, log in, go to Settings → configure prices, opening hours, WhatsApp number, and upload a QR code image
+
+### Existing Project Migration
+
+If upgrading from an earlier version of this codebase:
+
+- [ ] Run `add-ai-checked.sql` to add the `ai_checked` column to the existing `bookings` table
 
 ---
 
@@ -341,6 +365,39 @@ vercel --prod
 - **No slot availability display** — the booking form shows all slots regardless of existing bookings.
 - **Closure mode is informational only** — the banner warns members but does not block bookings.
 - **Single admin recommended** — there is no per-admin audit trail; all actions appear under the same authenticated session.
+
+---
+
+## Future Implementation
+
+### AI Payment Proof Verification
+
+The `ai_checked` boolean column on the `bookings` table is a placeholder for automated payment proof checking. The planned flow:
+
+1. When a user uploads a payment proof, trigger an AI vision check on the image
+2. The AI verifies the screenshot looks like a genuine bank transfer / eSewa / Khalti payment for the correct amount
+3. On success, set `ai_checked = true` on the booking; optionally auto-advance status to Paid
+4. On failure or low confidence, leave `ai_checked = false` and flag for manual admin review
+
+The admin bookings table already shows a green **Checked** badge when `ai_checked = true` and a dash when `false` — no UI changes needed when this is implemented.
+
+**Suggested implementation approach:**
+- Supabase Edge Function triggered by a `bookings` table INSERT or UPDATE (when `proof_url` changes)
+- Call a vision model (e.g. GPT-4o, Claude) with the proof image URL and booking amount
+- Parse the response and PATCH `ai_checked` accordingly
+- Optionally PATCH `status` to `Paid` if confidence is high enough
+
+### Slot Availability / Double-Booking Prevention
+
+Currently all time slots are shown regardless of existing bookings. A future improvement would grey out or hide slots that are already taken, and enforce a unique constraint on `(date, court, slot)` at the database level.
+
+### Email / SMS Notifications
+
+Notify members automatically when their booking status changes (e.g. "Your booking NTA-2024-0042 has been confirmed"). Could be implemented via Supabase Edge Functions + Resend (email) or a local SMS gateway.
+
+### Multiple Admin Accounts
+
+Add an audit log table to track which admin performed each action (Mark paid, Cancel, etc.), with timestamps and the admin's email.
 
 ---
 
