@@ -304,6 +304,8 @@ async function doLogin() {
     }
     accessToken = data.access_token;
     userEmail = data.user?.email || email;
+    sessionStorage.setItem('nta_token', accessToken);
+    sessionStorage.setItem('nta_email', userEmail);
     document.getElementById('admin-email').textContent = userEmail;
     err.style.display = 'none';
     allMembers = await sbGet('members?select=*&order=registered_at.desc');
@@ -330,6 +332,8 @@ async function doLogout() {
   accessToken = null;
   userEmail = '';
   allMembers = []; allBookings = [];
+  sessionStorage.removeItem('nta_token');
+  sessionStorage.removeItem('nta_email');
   document.getElementById('admin-email').textContent = '';
   document.getElementById('email-input').value = '';
   document.getElementById('pw-input').value = '';
@@ -599,6 +603,39 @@ function exportCSV(type) {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
+
+// ── SESSION RESTORE ───────────────────────────────────────────────────────────
+
+async function init() {
+  const saved = sessionStorage.getItem('nta_token');
+  if (!saved) return;
+  accessToken = saved;
+  userEmail = sessionStorage.getItem('nta_email') || '';
+  try {
+    const [members, bookings] = await Promise.all([
+      sbGet('members?select=*&order=registered_at.desc'),
+      sbGet('bookings?select=*&order=created_at.desc'),
+    ]);
+    // If the token is expired Supabase returns an error object, not an array
+    if (!Array.isArray(members) || !Array.isArray(bookings)) {
+      sessionStorage.removeItem('nta_token');
+      sessionStorage.removeItem('nta_email');
+      return;
+    }
+    allMembers = members;
+    allBookings = bookings;
+    document.getElementById('admin-email').textContent = userEmail;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    renderMembersStats(); renderMembers();
+    renderBookingsStats(); renderBookings();
+  } catch(e) {
+    sessionStorage.removeItem('nta_token');
+    sessionStorage.removeItem('nta_email');
+  }
+}
+
+init();
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function csvCell(v) { const s = String(v??''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; }
