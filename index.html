@@ -739,7 +739,7 @@ const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
 const NTA_WHATSAPP = '9779841044844';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
 
-let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[], paymentFile:null };
+let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[], paymentFile:null, paymentReady:null };
 let timerInterval = null;
 
 function show(id) {
@@ -1075,23 +1075,26 @@ function startTimer() {
 function handleUpload(input) {
   if (!input.files.length) return;
   const file=input.files[0];
-  // Compress to max 800px / JPEG 0.6 to keep base64 small enough for GET
-  const img=new Image();
-  const reader=new FileReader();
-  reader.onload=function(e){
-    img.onload=function(){
-      const MAX=800;
-      const scale=Math.min(1,MAX/Math.max(img.width,img.height));
-      const canvas=document.createElement('canvas');
-      canvas.width=Math.round(img.width*scale);
-      canvas.height=Math.round(img.height*scale);
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      const compressed=canvas.toDataURL('image/jpeg',0.6);
-      S.paymentFile={ data:compressed.split(',')[1], name:file.name.replace(/\.[^.]+$/,'.jpg'), type:'image/jpeg' };
+  // Store compression as a Promise so submitPayment can await it
+  S.paymentFile=null;
+  S.paymentReady=new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const img=new Image();
+      img.onload=function(){
+        const MAX=800;
+        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.round(img.width*scale);
+        canvas.height=Math.round(img.height*scale);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        const compressed=canvas.toDataURL('image/jpeg',0.6);
+        resolve({ data:compressed.split(',')[1], name:file.name.replace(/\.[^.]+$/,'.jpg'), type:'image/jpeg' });
+      };
+      img.src=e.target.result;
     };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
   document.getElementById('upload-area').className='upload-area uploaded';
   document.getElementById('upload-icon-el').innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i>';
   document.getElementById('upload-text-el').innerHTML='<strong style="color:var(--green)">File selected</strong>';
@@ -1105,13 +1108,16 @@ async function submitPayment() {
   btn.disabled=true;
   btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Uploading…';
   try {
-    const params=new URLSearchParams({
-      action:'uploadPayment', ref:S.ref,
-      fileData:S.paymentFile.data,
-      fileName:S.paymentFile.name,
-      mimeType:S.paymentFile.type
-    });
-    await fetch(`${SCRIPT_URL}?${params}`);
+    // Always await compression before uploading
+    const f = S.paymentReady ? await S.paymentReady : null;
+    if (f) {
+      await fetch(SCRIPT_URL, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({ action:'uploadPayment', ref:S.ref,
+          fileData:f.data, fileName:f.name, mimeType:f.type })
+      });
+    }
   } catch(e) { console.warn('Upload failed:',e); }
   btn.disabled=false;
   btn.innerHTML='<i class="ti ti-send"></i> Submit payment proof';
