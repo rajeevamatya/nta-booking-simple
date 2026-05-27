@@ -8,10 +8,11 @@
 
 function doGet(e) {
   const p = e.parameter;
-  if (p.action === 'lookup')      return lookupMember(p.phone);
-  if (p.action === 'register')    return registerMember(p);
-  if (p.action === 'book')        return createBooking(p);
-  if (p.action === 'getBookings') return getBookings(p.date);
+  if (p.action === 'lookup')         return lookupMember(p.phone);
+  if (p.action === 'register')       return registerMember(p);
+  if (p.action === 'book')           return createBooking(p);
+  if (p.action === 'getBookings')    return getBookings(p.date);
+  if (p.action === 'uploadPayment')  return uploadPayment(p);
   return respond({ error: 'Unknown action' });
 }
 
@@ -53,15 +54,9 @@ function getBookings(rawDate) {
   return respond({ bookings });
 }
 
-// ── POST: uploadPayment ───────────────────────────────────────────────────────
+// ── uploadPayment (called via doGet to avoid POST redirect issue) ─────────────
 
-function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  if (data.action === 'uploadPayment') return uploadPayment(data);
-  return respond({ error: 'Unknown action' });
-}
-
-function uploadPayment(data) {
+function uploadPayment(p) {
   // Get or create the NTA Payment Proofs folder in Drive
   const folderName = 'NTA Payment Proofs';
   const folders = DriveApp.getFoldersByName(folderName);
@@ -69,7 +64,7 @@ function uploadPayment(data) {
 
   // Decode base64 and save the file
   const blob = Utilities.newBlob(
-    Utilities.base64Decode(data.fileData), data.mimeType, data.ref + '_' + data.fileName
+    Utilities.base64Decode(p.fileData), p.mimeType, p.ref + '_' + p.fileName
   );
   const file = folder.createFile(blob);
 
@@ -77,13 +72,20 @@ function uploadPayment(data) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === data.ref) {
+    if (rows[i][0] === p.ref) {
       sheet.getRange(i + 1, 9).setValue('Payment Submitted');
       sheet.getRange(i + 1, 13).setValue(file.getUrl());
       break;
     }
   }
   return respond({ success: true });
+}
+
+// doPost kept as fallback
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  if (data.action === 'uploadPayment') return uploadPayment(data);
+  return respond({ error: 'Unknown action' });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

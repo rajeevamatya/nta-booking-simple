@@ -1075,9 +1075,21 @@ function startTimer() {
 function handleUpload(input) {
   if (!input.files.length) return;
   const file=input.files[0];
+  // Compress to max 800px / JPEG 0.6 to keep base64 small enough for GET
+  const img=new Image();
   const reader=new FileReader();
   reader.onload=function(e){
-    S.paymentFile={ data:e.target.result.split(',')[1], name:file.name, type:file.type };
+    img.onload=function(){
+      const MAX=800;
+      const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      const compressed=canvas.toDataURL('image/jpeg',0.6);
+      S.paymentFile={ data:compressed.split(',')[1], name:file.name.replace(/\.[^.]+$/,'.jpg'), type:'image/jpeg' };
+    };
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
   document.getElementById('upload-area').className='upload-area uploaded';
@@ -1093,16 +1105,13 @@ async function submitPayment() {
   btn.disabled=true;
   btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Uploading…';
   try {
-    await fetch(SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({
-        action:'uploadPayment', ref:S.ref,
-        fileData:S.paymentFile.data,
-        fileName:S.paymentFile.name,
-        mimeType:S.paymentFile.type
-      })
+    const params=new URLSearchParams({
+      action:'uploadPayment', ref:S.ref,
+      fileData:S.paymentFile.data,
+      fileName:S.paymentFile.name,
+      mimeType:S.paymentFile.type
     });
+    await fetch(`${SCRIPT_URL}?${params}`);
   } catch(e) { console.warn('Upload failed:',e); }
   btn.disabled=false;
   btn.innerHTML='<i class="ti ti-send"></i> Submit payment proof';
