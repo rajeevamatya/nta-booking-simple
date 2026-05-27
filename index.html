@@ -149,6 +149,13 @@
   }
   input:focus { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(47,168,118,0.12); }
   input[readonly] { background: var(--surface2); color: var(--text-muted); cursor: default; }
+  input[type=date] {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+    min-height: 44px;
+  }
+  input[type=date]::-webkit-date-and-time-value { text-align: left; }
   .field-group { margin-bottom: 1rem; }
 
   /* ── BUTTONS ── */
