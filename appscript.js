@@ -54,7 +54,37 @@ function getBookings(rawDate) {
   return respond({ bookings });
 }
 
-// ── GET: updatePayment (called after Supabase Storage upload) ────────────────
+// ── POST: uploadPayment via Vercel proxy ──────────────────────────────────────
+
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  if (data.action === 'uploadPayment') return uploadPaymentDrive(data);
+  return respond({ error: 'Unknown action' });
+}
+
+function uploadPaymentDrive(data) {
+  const folderName = 'NTA Payment Proofs';
+  const folders = DriveApp.getFoldersByName(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+
+  const blob = Utilities.newBlob(
+    Utilities.base64Decode(data.fileData), data.mimeType, data.ref + '_' + data.fileName
+  );
+  const file = folder.createFile(blob);
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === data.ref) {
+      sheet.getRange(i + 1, 9).setValue('Payment Submitted');
+      sheet.getRange(i + 1, 13).setValue(file.getUrl());
+      break;
+    }
+  }
+  return respond({ success: true });
+}
+
+// ── GET: updatePayment (fallback via Supabase Storage) ───────────────────────
 
 function updatePayment(ref, proofUrl) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');

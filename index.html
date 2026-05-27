@@ -1112,25 +1112,36 @@ async function submitPayment() {
   try {
     const f = S.paymentReady ? await S.paymentReady : null;
     if (f) {
-      // Convert base64 to blob
-      const bytes = atob(f.data);
-      const ab = new ArrayBuffer(bytes.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
-      const blob = new Blob([ab], { type: f.type });
+      // Try Drive via proxy first
+      let driveOk = false;
+      try {
+        const driveRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action:'uploadPayment', ref:S.ref,
+            fileData:f.data, fileName:f.name, mimeType:f.type }),
+        });
+        const driveJson = await driveRes.json();
+        driveOk = driveJson.success === true;
+      } catch(e) { console.warn('Drive upload failed, falling back to Supabase:', e); }
 
-      // Upload directly to Supabase Storage (public bucket, no proxy needed)
-      const path = `${S.ref}/${f.name}`;
-      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
-        method: 'POST',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': f.type },
-        body: blob,
-      });
-
-      if (up.ok) {
-        // Tell Apps Script to mark booking as Payment Submitted + store proof URL
-        const proofUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}`;
-        await fetch(`${SCRIPT_URL}?action=updatePayment&ref=${encodeURIComponent(S.ref)}&proofUrl=${encodeURIComponent(proofUrl)}`);
+      // Fall back to Supabase Storage if Drive didn't work
+      if (!driveOk) {
+        const bytes = atob(f.data);
+        const ab = new ArrayBuffer(bytes.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+        const blob = new Blob([ab], { type: f.type });
+        const path = `${S.ref}/${f.name}`;
+        const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': f.type },
+          body: blob,
+        });
+        if (up.ok) {
+          const proofUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}`;
+          await fetch(`${SCRIPT_URL}?action=updatePayment&ref=${encodeURIComponent(S.ref)}&proofUrl=${encodeURIComponent(proofUrl)}`);
+        }
       }
     }
   } catch(e) { console.warn('Upload failed:',e); }
