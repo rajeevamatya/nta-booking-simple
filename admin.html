@@ -117,9 +117,11 @@
         <div class="login-sub">Nepal Tennis Association</div>
       </div>
     </div>
-    <label for="pw-input">Admin password</label>
+    <label for="email-input">Email</label>
+    <input type="email" id="email-input" placeholder="admin@example.com" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')doLogin()">
+    <label for="pw-input">Password</label>
     <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
-    <p class="err" id="login-err">Incorrect password.</p>
+    <p class="err" id="login-err"></p>
     <button class="btn-primary" onclick="doLogin()">
       <i class="ti ti-lock-open"></i> Sign in
     </button>
@@ -185,13 +187,13 @@
 <script>
 const SUPABASE_URL = 'https://njthghjidutnrrkxlfkv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
-const ADMIN_PASS   = 'nta2026'; // Change this password
 
+let accessToken = null;
 let allMembers = [];
 let allBookings = [];
 
 function sbHeaders(extra = {}) {
-  return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...extra };
+  return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...extra };
 }
 async function sbGet(path) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: sbHeaders() });
@@ -202,14 +204,29 @@ async function sbPatch(path, body) {
 }
 
 async function doLogin() {
+  const email = document.getElementById('email-input').value.trim();
   const pw = document.getElementById('pw-input').value;
   const err = document.getElementById('login-err');
-  if (pw !== ADMIN_PASS) { err.style.display='block'; err.textContent='Incorrect password.'; return; }
-  err.style.display = 'none';
+  if (!email || !pw) return;
   const btn = document.querySelector('#login-screen .btn-primary');
   btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Loading…';
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Signing in…';
   try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw }),
+    });
+    const data = await r.json();
+    if (!data.access_token) {
+      err.textContent = 'Incorrect email or password.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-lock-open"></i> Sign in';
+      return;
+    }
+    accessToken = data.access_token;
+    err.style.display = 'none';
     allMembers = await sbGet('members?select=*&order=registered_at.desc');
     allBookings = await sbGet('bookings?select=*&order=created_at.desc');
     document.getElementById('login-screen').style.display = 'none';
@@ -224,8 +241,16 @@ async function doLogin() {
   btn.innerHTML = '<i class="ti ti-lock-open"></i> Sign in';
 }
 
-function doLogout() {
+async function doLogout() {
+  if (accessToken) {
+    fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}` },
+    }).catch(() => {});
+  }
+  accessToken = null;
   allMembers = []; allBookings = [];
+  document.getElementById('email-input').value = '';
   document.getElementById('pw-input').value = '';
   document.getElementById('login-err').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
