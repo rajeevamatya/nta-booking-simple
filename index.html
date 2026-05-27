@@ -739,7 +739,7 @@ const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
 const NTA_WHATSAPP = '9779841044844';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
 
-let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[] };
+let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[], paymentFile:null };
 let timerInterval = null;
 
 function show(id) {
@@ -1075,6 +1075,11 @@ function startTimer() {
 function handleUpload(input) {
   if (!input.files.length) return;
   const file=input.files[0];
+  const reader=new FileReader();
+  reader.onload=function(e){
+    S.paymentFile={ data:e.target.result.split(',')[1], name:file.name, type:file.type };
+  };
+  reader.readAsDataURL(file);
   document.getElementById('upload-area').className='upload-area uploaded';
   document.getElementById('upload-icon-el').innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i>';
   document.getElementById('upload-text-el').innerHTML='<strong style="color:var(--green)">File selected</strong>';
@@ -1082,8 +1087,25 @@ function handleUpload(input) {
   document.getElementById('submit-payment-btn').style.display='flex';
 }
 
-function submitPayment() {
+async function submitPayment() {
   if (timerInterval) clearInterval(timerInterval);
+  const btn=document.getElementById('submit-payment-btn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Uploading…';
+  try {
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        action:'uploadPayment', ref:S.ref,
+        fileData:S.paymentFile.data,
+        fileName:S.paymentFile.name,
+        mimeType:S.paymentFile.type
+      })
+    });
+  } catch(e) { console.warn('Upload failed:',e); }
+  btn.disabled=false;
+  btn.innerHTML='<i class="ti ti-send"></i> Submit payment proof';
   document.getElementById('paid-ref').textContent=S.ref;
   show('screen-paid');
 }
