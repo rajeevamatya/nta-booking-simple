@@ -241,6 +241,7 @@
     <div class="modal-foot" id="proof-modal-foot">
       <button class="action-btn btn-cancel-edit" onclick="closeProofModal()"><i class="ti ti-x"></i> Close</button>
       <button class="action-btn btn-cancel" id="proof-modal-cancel-btn" onclick="updateBookingFromModal('Cancelled')" style="display:none"><i class="ti ti-ban"></i> Cancel booking</button>
+      <button class="action-btn btn-unverify" id="proof-modal-unpay-btn" onclick="updateBookingFromModal('Payment Submitted')" style="display:none"><i class="ti ti-arrow-back-up"></i> Undo paid</button>
       <button class="action-btn btn-paid" id="proof-modal-pay-btn" onclick="updateBookingFromModal('Paid')" style="display:none"><i class="ti ti-check"></i> Mark as paid</button>
     </div>
   </div>
@@ -520,6 +521,7 @@ function renderBookings() {
     let actions = '';
     if (hasProof) actions += `<button class="action-btn btn-proof" onclick="openProofModal('${b.id}')"><i class="ti ti-photo"></i> View proof</button>`;
     if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
+    if (b.status === 'Paid') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Payment Submitted')"><i class="ti ti-arrow-back-up"></i> Undo paid</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
     return `
     <tr${b.status === 'Payment Submitted' ? ' class="needs-action"' : ''}>
@@ -566,7 +568,9 @@ function openProofModal(id) {
   }
   const payBtn = document.getElementById('proof-modal-pay-btn');
   const cancelBtn = document.getElementById('proof-modal-cancel-btn');
+  const unpayBtn = document.getElementById('proof-modal-unpay-btn');
   payBtn.style.display = b.status === 'Payment Submitted' ? 'inline-flex' : 'none';
+  unpayBtn.style.display = b.status === 'Paid' ? 'inline-flex' : 'none';
   cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Paid') ? 'inline-flex' : 'none';
   document.getElementById('proof-modal').classList.add('open');
 }
