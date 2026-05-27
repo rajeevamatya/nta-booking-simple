@@ -247,6 +247,12 @@
     display: flex; align-items: center; justify-content: space-between;
   }
   .slot-cell:hover { border-color: var(--green-mid); color: var(--green); }
+  .slot-cell.slot-hint {
+    border-color: var(--green-mid);
+    border-style: dashed;
+    color: var(--green);
+    background: var(--green-light);
+  }
   .slot-cell.sel-first {
     background: var(--green);
     border-color: var(--green);
@@ -897,6 +903,7 @@ function renderSlots() {
 }
 
 function toggleSlot(h) {
+  if (isSlotFull(h)) return;
   const cur=S.slots;
   if (cur.includes(h)) {
     S.slots = cur.length===2 ? [h===cur[0]?cur[1]:cur[0]] : [];
@@ -906,6 +913,7 @@ function toggleSlot(h) {
     } else if (cur.length===1 && Math.abs(h-cur[0])===1) {
       S.slots=[Math.min(h,cur[0]),Math.max(h,cur[0])];
     } else {
+      // Non-consecutive — replace selection
       S.slots=[h];
     }
   }
@@ -915,10 +923,13 @@ function toggleSlot(h) {
 }
 
 function updateSlotUI() {
+  const adjacent = S.slots.length===1
+    ? [S.slots[0]-1, S.slots[0]+1].filter(h=>HOURS.includes(h)&&!isSlotFull(h))
+    : [];
   HOURS.forEach(h=>{
     const el=document.getElementById('slot-'+h);
     const badge=document.getElementById('slot-badge-'+h);
-    if (!el) return;
+    if (!el || el.classList.contains('slot-full')) return;
     badge.style.display='none';
     if (S.slots.length===1 && S.slots[0]===h) {
       el.className='slot-cell sel-single';
@@ -927,6 +938,8 @@ function updateSlotUI() {
     } else if (S.slots.length===2 && S.slots[1]===h) {
       el.className='slot-cell sel-second';
       badge.style.display='inline';
+    } else if (adjacent.includes(h)) {
+      el.className='slot-cell slot-hint';
     } else {
       el.className='slot-cell';
     }
