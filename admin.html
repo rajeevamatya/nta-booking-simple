@@ -125,6 +125,17 @@
   .no-proof-msg { text-align:center;padding:2rem 1rem;color:var(--text-faint);font-size:13px; }
   .proof-status { margin-bottom:.75rem; }
 
+  /* ── SETTINGS ── */
+  .settings-card { background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.25rem;margin-bottom:1rem; }
+  .settings-title { font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:7px; }
+  .settings-sub { font-size:12px;color:var(--text-muted);margin-bottom:1.25rem; }
+  .settings-label { font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;display:block;margin-bottom:6px; }
+  .settings-input { width:100%;border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:var(--surface);color:var(--text);transition:border-color .15s; }
+  .settings-input:focus { border-color:var(--green-mid); }
+  .settings-grid2 { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px; }
+  .settings-foot { display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border); }
+  .settings-status { font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px; }
+
   /* export option buttons */
   .export-opt { display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-mid);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);width:100%;margin-bottom:8px;text-align:left;transition:all .15s; }
   .export-opt:hover { border-color:var(--green-mid);background:var(--green-light);color:var(--green-dark); }
@@ -174,6 +185,7 @@
     <div class="tabs">
       <button class="tab" onclick="showTab('members')"><i class="ti ti-users"></i> Members <span id="unverified-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
       <button class="tab active" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
+      <button class="tab" onclick="showTab('settings')"><i class="ti ti-settings"></i> Settings</button>
     </div>
 
     <div id="tab-members" style="display:none">
@@ -216,6 +228,102 @@
           <tbody id="bookings-tbody"><tr><td colspan="9" class="loading"><i class="ti ti-loader-2 spin"></i> Loading…</td></tr></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- ── SETTINGS TAB ── -->
+    <div id="tab-settings" style="display:none">
+
+      <div class="settings-card">
+        <div class="settings-title"><i class="ti ti-alert-triangle" style="color:#d97706;font-size:16px"></i> Court Closure Notice</div>
+        <div class="settings-sub">Shows an info banner on the booking app. Does not block bookings.</div>
+        <div class="settings-grid2">
+          <div>
+            <label class="settings-label">From</label>
+            <input type="date" id="s-closure-from" class="settings-input">
+          </div>
+          <div>
+            <label class="settings-label">To &nbsp;<span style="font-weight:400;text-transform:none;font-size:11px;color:var(--text-faint)">blank = indefinite</span></label>
+            <input type="date" id="s-closure-to" class="settings-input">
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <label class="settings-label">Message shown to users</label>
+          <textarea id="s-closure-message" class="settings-input" rows="2" style="resize:vertical;line-height:1.5"></textarea>
+        </div>
+        <div class="settings-foot">
+          <span id="s-closure-status" class="settings-status"></span>
+          <button class="action-btn btn-save" onclick="saveSettings('closure')"><i class="ti ti-check"></i> Save</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-title"><i class="ti ti-clock" style="color:var(--green);font-size:16px"></i> Opening Hours</div>
+        <div class="settings-sub">Determines which time slots appear in the booking app.</div>
+        <div class="settings-grid2">
+          <div>
+            <label class="settings-label">Open from</label>
+            <select id="s-open-from" class="settings-input"></select>
+          </div>
+          <div>
+            <label class="settings-label">Last slot starts at</label>
+            <select id="s-open-to" class="settings-input"></select>
+          </div>
+        </div>
+        <div class="settings-foot">
+          <span></span>
+          <button class="action-btn btn-save" onclick="saveSettings('hours')"><i class="ti ti-check"></i> Save</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-title"><i class="ti ti-receipt" style="color:var(--green);font-size:16px"></i> Pricing</div>
+        <div class="settings-sub">Hourly court rates shown in the booking app.</div>
+        <div class="settings-grid2">
+          <div>
+            <label class="settings-label">Singles (per hour)</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-muted);pointer-events:none">Rs.</span>
+              <input type="number" id="s-price-singles" class="settings-input" style="padding-left:36px" min="0" step="50">
+            </div>
+          </div>
+          <div>
+            <label class="settings-label">Doubles (per hour)</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-muted);pointer-events:none">Rs.</span>
+              <input type="number" id="s-price-doubles" class="settings-input" style="padding-left:36px" min="0" step="50">
+            </div>
+          </div>
+        </div>
+        <div class="settings-foot">
+          <span></span>
+          <button class="action-btn btn-save" onclick="saveSettings('pricing')"><i class="ti ti-check"></i> Save</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-title"><i class="ti ti-device-mobile" style="color:var(--green);font-size:16px"></i> Contact & Payment</div>
+        <div class="settings-sub">WhatsApp number and payment QR shown to users on the booking app.</div>
+        <div style="margin-bottom:12px">
+          <label class="settings-label">WhatsApp number</label>
+          <input type="tel" id="s-whatsapp" class="settings-input" placeholder="9779841044844">
+        </div>
+        <div>
+          <label class="settings-label">Payment QR code</label>
+          <div id="s-qr-preview-wrap" style="display:none;margin-bottom:10px">
+            <img id="s-qr-preview" style="width:130px;height:130px;border-radius:var(--radius-sm);border:1px solid var(--border);display:block">
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--surface2);border:1px solid var(--border-mid);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;color:var(--text-muted);transition:all .15s" onmouseover="this.style.borderColor='var(--green-mid)'" onmouseout="this.style.borderColor='var(--border-mid)'">
+            <i class="ti ti-upload"></i> Upload QR image
+            <input type="file" id="s-qr-file" accept="image/*" style="display:none" onchange="uploadQR(this)">
+          </label>
+          <span id="s-qr-status" style="font-size:12px;color:var(--text-muted);margin-left:10px"></span>
+        </div>
+        <div class="settings-foot">
+          <span></span>
+          <button class="action-btn btn-save" onclick="saveSettings('contact')"><i class="ti ti-check"></i> Save</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -360,10 +468,13 @@ async function doLogin() {
     err.style.display = 'none';
     allMembers = await sbGet('members?select=*&order=registered_at.desc');
     allBookings = await sbGet('bookings?select=*&order=created_at.desc');
+    const sd = await sbGet('settings?id=eq.1&select=*');
+    allSettings = sd && sd[0] ? sd[0] : {};
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers(); updateUnverifiedBadge();
     renderBookingsStats(); renderBookings(); updatePendingBadge();
+    loadSettingsForm(allSettings);
     startAutoRefresh();
   } catch(e) {
     err.textContent = 'Network error — check your connection.';
@@ -395,9 +506,12 @@ async function doLogout() {
 }
 
 function showTab(tab) {
-  document.getElementById('tab-members').style.display = tab === 'members' ? 'block' : 'none';
-  document.getElementById('tab-bookings').style.display = tab === 'bookings' ? 'block' : 'none';
-  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'members')));
+  ['members','bookings','settings'].forEach(t =>
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none'
+  );
+  document.querySelectorAll('.tab').forEach((t, i) =>
+    t.classList.toggle('active', ['members','bookings','settings'][i] === tab)
+  );
 }
 
 // ── MEMBERS ──────────────────────────────────────────────────────────────────
@@ -655,6 +769,125 @@ function exportCSV(type) {
   URL.revokeObjectURL(url);
 }
 
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+
+let allSettings = {};
+
+function fmtHour(h) {
+  if (h === 0) return '12:00 AM';
+  if (h === 12) return '12:00 PM';
+  return h < 12 ? `${h}:00 AM` : `${h-12}:00 PM`;
+}
+
+function populateHourSelects() {
+  ['s-open-from','s-open-to'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length > 0) return;
+    for (let h = 5; h <= 22; h++) {
+      const o = document.createElement('option');
+      o.value = h; o.textContent = fmtHour(h);
+      sel.appendChild(o);
+    }
+  });
+}
+
+function loadSettingsForm(s) {
+  populateHourSelects();
+  document.getElementById('s-closure-from').value = s.closure_from || '';
+  document.getElementById('s-closure-to').value = s.closure_to || '';
+  document.getElementById('s-closure-message').value = s.closure_message || '';
+  document.getElementById('s-open-from').value = s.open_from ?? 6;
+  document.getElementById('s-open-to').value = s.open_to ?? 19;
+  document.getElementById('s-price-singles').value = s.price_singles ?? 400;
+  document.getElementById('s-price-doubles').value = s.price_doubles ?? 600;
+  document.getElementById('s-whatsapp').value = s.whatsapp || '';
+  if (s.qr_url) {
+    document.getElementById('s-qr-preview').src = s.qr_url;
+    document.getElementById('s-qr-preview-wrap').style.display = 'block';
+  }
+  updateClosureStatusIndicator(s);
+}
+
+function updateClosureStatusIndicator(s) {
+  const el = document.getElementById('s-closure-status');
+  if (!el) return;
+  if (!s.closure_from) {
+    el.innerHTML = '<i class="ti ti-circle-off" style="font-size:13px"></i> No closure set';
+    el.style.color = 'var(--text-faint)';
+    return;
+  }
+  const today = new Date().toISOString().split('T')[0];
+  const active = s.closure_from <= today && (!s.closure_to || s.closure_to >= today);
+  const future = s.closure_from > today;
+  if (active) {
+    const until = s.closure_to ? ` until ${s.closure_to}` : ' (indefinite)';
+    el.innerHTML = `<i class="ti ti-alert-circle" style="font-size:13px"></i> Active — banner showing${until}`;
+    el.style.color = '#d97706';
+  } else if (future) {
+    el.innerHTML = `<i class="ti ti-clock" style="font-size:13px"></i> Scheduled from ${s.closure_from}`;
+    el.style.color = 'var(--text-muted)';
+  } else {
+    el.innerHTML = `<i class="ti ti-circle-check" style="font-size:13px"></i> Past closure — no banner showing`;
+    el.style.color = 'var(--text-faint)';
+  }
+}
+
+async function saveSettings(type) {
+  const btn = event.target.closest('button');
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…';
+  let patch = {};
+  if (type === 'closure') {
+    patch = {
+      closure_from: document.getElementById('s-closure-from').value || null,
+      closure_to:   document.getElementById('s-closure-to').value || null,
+      closure_message: document.getElementById('s-closure-message').value.trim() || null,
+    };
+  } else if (type === 'hours') {
+    patch = {
+      open_from: parseInt(document.getElementById('s-open-from').value),
+      open_to:   parseInt(document.getElementById('s-open-to').value),
+    };
+  } else if (type === 'pricing') {
+    patch = {
+      price_singles: parseInt(document.getElementById('s-price-singles').value),
+      price_doubles: parseInt(document.getElementById('s-price-doubles').value),
+    };
+  } else if (type === 'contact') {
+    patch = { whatsapp: document.getElementById('s-whatsapp').value.trim() };
+  }
+  await sbPatch('settings?id=eq.1', patch);
+  Object.assign(allSettings, patch);
+  if (type === 'closure') updateClosureStatusIndicator(allSettings);
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-circle-check" style="color:var(--green)"></i> Saved';
+  setTimeout(() => { btn.innerHTML = orig; }, 2000);
+}
+
+async function uploadQR(input) {
+  if (!input.files.length) return;
+  const file = input.files[0];
+  const status = document.getElementById('s-qr-status');
+  status.innerHTML = '<i class="ti ti-loader-2 spin"></i> Uploading…';
+  const path = 'settings/qr.jpg';
+  const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': file.type, 'x-upsert': 'true' },
+    body: file,
+  });
+  if (up.ok) {
+    const qrUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}?t=${Date.now()}`;
+    await sbPatch('settings?id=eq.1', { qr_url: qrUrl });
+    allSettings.qr_url = qrUrl;
+    document.getElementById('s-qr-preview').src = qrUrl;
+    document.getElementById('s-qr-preview-wrap').style.display = 'block';
+    status.textContent = 'Uploaded!';
+  } else {
+    status.textContent = 'Upload failed.';
+  }
+  setTimeout(() => { status.textContent = ''; input.value = ''; }, 3000);
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
 // ── SESSION RESTORE ───────────────────────────────────────────────────────────
@@ -677,11 +910,14 @@ async function init() {
     }
     allMembers = members;
     allBookings = bookings;
+    const sd = await sbGet('settings?id=eq.1&select=*');
+    allSettings = sd && sd[0] ? sd[0] : {};
     document.getElementById('admin-email').textContent = userEmail;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers(); updateUnverifiedBadge();
     renderBookingsStats(); renderBookings(); updatePendingBadge();
+    loadSettingsForm(allSettings);
     startAutoRefresh();
   } catch(e) {
     sessionStorage.removeItem('nta_token');

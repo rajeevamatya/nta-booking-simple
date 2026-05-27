@@ -559,6 +559,10 @@
     </div>
     <div class="content">
       <div id="user-chip"></div>
+      <div id="closure-banner" class="payment-note" style="display:none;margin-bottom:1rem">
+        <i class="ti ti-info-circle"></i>
+        <div class="payment-note-text" id="closure-banner-text"></div>
+      </div>
       <div class="sec-title">Book a court</div>
       <div class="sec-sub">Select a date then choose 1 or 2 consecutive hourly slots.</div>
       <div class="card">
@@ -665,6 +669,13 @@
         <span>Payment required within <span id="timer-count">10:00</span></span>
       </div>
 
+      <div id="qr-section" style="display:none;text-align:center;margin-bottom:1rem">
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:8px">
+          <i class="ti ti-qrcode" style="color:var(--green);vertical-align:-2px;margin-right:4px"></i>Scan to pay
+        </div>
+        <img id="qr-img" src="" alt="Payment QR" style="width:180px;height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);display:inline-block">
+      </div>
+
       <div class="payment-note">
         <i class="ti ti-alert-triangle"></i>
         <div class="payment-note-text">
@@ -764,10 +775,17 @@
 </div>
 
 <script>
-const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
-const NTA_WHATSAPP = '9779841044844';
+let HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
 const SUPABASE_URL  = 'https://njthghjidutnrrkxlfkv.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
+
+let CONFIG = {
+  openFrom: 6, openTo: 19,
+  priceSingles: 400, priceDoubles: 600,
+  whatsapp: '9779841044844',
+  qrUrl: null,
+  closureFrom: null, closureTo: null, closureMessage: '',
+};
 
 function sbHeaders(extra = {}) {
   return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...extra };
@@ -837,7 +855,7 @@ async function checkMobile() {
 }
 
 function getPrice() {
-  const rate = S.matchType==='singles' ? 400 : 600;
+  const rate = S.matchType==='singles' ? CONFIG.priceSingles : CONFIG.priceDoubles;
   return rate * S.slots.length;
 }
 function selType(v) {
@@ -1183,7 +1201,61 @@ function sendWhatsapp() {
     '• Total: Rs. '+getPrice().toLocaleString()+'\n\n'+
     'Payment proof attached. Please confirm. Thanks!'
   );
-  window.open('https://wa.me/'+NTA_WHATSAPP+'?text='+msg,'_blank');
+  window.open('https://wa.me/'+CONFIG.whatsapp+'?text='+msg,'_blank');
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+
+async function loadSettings() {
+  try {
+    const data = await sbGet('settings?id=eq.1&select=*');
+    const s = data && data[0] ? data[0] : {};
+
+    if (s.open_from != null && s.open_to != null) {
+      CONFIG.openFrom = s.open_from;
+      CONFIG.openTo   = s.open_to;
+      HOURS = [];
+      for (let h = CONFIG.openFrom; h <= CONFIG.openTo; h++) HOURS.push(h);
+    }
+    if (s.price_singles) CONFIG.priceSingles = s.price_singles;
+    if (s.price_doubles) CONFIG.priceDoubles = s.price_doubles;
+    if (s.whatsapp)      CONFIG.whatsapp     = s.whatsapp;
+
+    // Update match type toggle labels with live prices
+    const sEl = document.getElementById('type-singles');
+    const dEl = document.getElementById('type-doubles');
+    if (sEl) sEl.innerHTML = `<i class="ti ti-user" style="font-size:12px;vertical-align:-2px;margin-right:4px"></i>Singles · Rs. ${CONFIG.priceSingles}/hr`;
+    if (dEl) dEl.innerHTML = `<i class="ti ti-users" style="font-size:12px;vertical-align:-2px;margin-right:4px"></i>Doubles · Rs. ${CONFIG.priceDoubles}/hr`;
+
+    // QR code
+    if (s.qr_url) {
+      CONFIG.qrUrl = s.qr_url;
+      const qrSection = document.getElementById('qr-section');
+      const qrImg     = document.getElementById('qr-img');
+      if (qrSection && qrImg) { qrImg.src = s.qr_url; qrSection.style.display = 'block'; }
+    }
+
+    // Closure banner
+    CONFIG.closureFrom    = s.closure_from    || null;
+    CONFIG.closureTo      = s.closure_to      || null;
+    CONFIG.closureMessage = s.closure_message || '';
+    updateClosureBanner();
+  } catch(e) {
+    console.warn('Settings load failed, using defaults');
+  }
+}
+
+function updateClosureBanner() {
+  const banner = document.getElementById('closure-banner');
+  const text   = document.getElementById('closure-banner-text');
+  if (!banner || !CONFIG.closureFrom || !CONFIG.closureMessage) {
+    if (banner) banner.style.display = 'none';
+    return;
+  }
+  const today  = new Date().toISOString().split('T')[0];
+  const active = CONFIG.closureFrom <= today && (!CONFIG.closureTo || CONFIG.closureTo >= today);
+  text.textContent  = CONFIG.closureMessage;
+  banner.style.display = active ? 'flex' : 'none';
 }
 
 // ── BOOKING STATUS (screen-paid) ──────────────────────────────────────────────
@@ -1315,6 +1387,9 @@ function logout() {
   document.getElementById('type-doubles').className='toggle-btn';
   show('screen-login');
 }
+
+// Load settings on page start (runs in background — defaults used if it fails)
+loadSettings();
 </script>
 </body>
 </html>
