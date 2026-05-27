@@ -905,7 +905,9 @@ function updateDayLabel() {
 async function initDate() {
   const d=document.getElementById('book-date');
   const today=new Date().toISOString().split('T')[0];
-  d.min=today; d.value=today;
+  const tom=new Date(); tom.setDate(tom.getDate()+1);
+  const tomorrow=tom.toISOString().split('T')[0];
+  d.min=today; d.max=tomorrow; d.value=today;
   S.date=today; S.slots=[]; S.court=null; S.bookings=[];
   updateDayLabel(); hideCourts(); await fetchBookings(); renderSlots();
 }
