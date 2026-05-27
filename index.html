@@ -733,7 +733,7 @@ const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
 const NTA_WHATSAPP = '9779841044844';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
 
-let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles' };
+let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[] };
 let timerInterval = null;
 
 function show(id) {
@@ -854,17 +854,33 @@ function updateDayLabel() {
   const d = new Date(S.date + 'T00:00:00');
   el.textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
-function initDate() {
+async function initDate() {
   const d=document.getElementById('book-date');
   const today=new Date().toISOString().split('T')[0];
   d.min=today; d.value=today;
-  S.date=today; S.slots=[]; S.court=null;
-  updateDayLabel(); renderSlots(); hideCourts();
+  S.date=today; S.slots=[]; S.court=null; S.bookings=[];
+  updateDayLabel(); hideCourts(); await fetchBookings(); renderSlots();
 }
-function onDateChange() {
+async function onDateChange() {
   S.date=document.getElementById('book-date').value;
-  S.slots=[]; S.court=null;
-  updateDayLabel(); renderSlots(); hideCourts();
+  S.slots=[]; S.court=null; S.bookings=[];
+  updateDayLabel(); hideCourts(); await fetchBookings(); renderSlots();
+}
+async function fetchBookings() {
+  if (!S.date) return;
+  const list=document.getElementById('slots-list');
+  const sec=document.getElementById('slots-section');
+  sec.style.display='block';
+  list.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text-faint);font-size:13px"><i class="ti ti-loader-2 spin"></i> Loading availability…</div>';
+  try {
+    const r=await fetch(`${SCRIPT_URL}?action=getBookings&date=${S.date}`);
+    const d=await r.json();
+    S.bookings=d.bookings||[];
+  } catch(e) { S.bookings=[]; }
+}
+function isSlotFull(h) {
+  const taken=new Set(S.bookings.filter(b=>b.slots.includes(h)).map(b=>b.court));
+  return taken.size>=6;
 }
 
 function renderSlots() {
@@ -873,7 +889,10 @@ function renderSlots() {
   sec.style.display='block';
   document.getElementById('slots-list').innerHTML=HOURS.map(h=>{
     const label=fmt12(h)+' – '+fmt12(h+1);
-    return `<div class="slot-cell" id="slot-${h}" data-h="${h}" onclick="toggleSlot(${h})">${label}<span class="slot-badge" id="slot-badge-${h}" style="display:none">2nd hour</span></div>`;
+    const full=isSlotFull(h);
+    return `<div class="slot-cell${full?' slot-full':''}" id="slot-${h}" data-h="${h}"
+      ${full?'style="opacity:0.42;cursor:not-allowed"':(`onclick="toggleSlot(${h})"`)}>
+      ${label}<span class="slot-badge" id="slot-badge-${h}" style="display:${full?'inline':'none'}">${full?'Full':'2nd hr'}</span></div>`;
   }).join('');
 }
 
@@ -914,16 +933,10 @@ function updateSlotUI() {
   });
 }
 
-function pseudoTaken(date, h) {
-  let seed=0;
-  for (let c of (date+h)) seed=(seed*31+c.charCodeAt(0))&0xfffff;
-  const taken=[];
-  for (let c=1;c<=6;c++) { if(((seed*c*7+c*13)%11)<3) taken.push(c); }
-  return taken;
-}
 function takenForSlots(date,slots) {
-  if (slots.length===1) return pseudoTaken(date,slots[0]);
-  return [...new Set([...pseudoTaken(date,slots[0]),...pseudoTaken(date,slots[1])])];
+  const taken=new Set();
+  S.bookings.forEach(b=>{ if(slots.some(s=>b.slots.includes(s))) taken.add(b.court); });
+  return [...taken];
 }
 
 function renderCourts() {
@@ -987,7 +1000,8 @@ async function confirmBooking() {
     const params = new URLSearchParams({ action:'book', ref:S.ref,
       phone:S.mobile, name:S.user.name, court:S.court,
       date:fmtDate(S.date), time:fmtRange(S.slots),
-      match:S.matchType==='singles'?'Singles':'Doubles', amount:getPrice() });
+      match:S.matchType==='singles'?'Singles':'Doubles', amount:getPrice(),
+      slots:S.slots.join(','), rawDate:S.date });
     await fetch(`${SCRIPT_URL}?${params}`);
   } catch(e) { console.warn('Sheet save failed:', e); }
   btn.disabled = false;
