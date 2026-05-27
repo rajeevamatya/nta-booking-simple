@@ -870,11 +870,26 @@ async function uploadQR(input) {
   const file = input.files[0];
   const status = document.getElementById('s-qr-status');
   status.innerHTML = '<i class="ti ti-loader-2 spin"></i> Uploading…';
+
+  // Re-encode to JPEG via canvas so the content-type always matches the .jpg path,
+  // regardless of whether the user uploaded a PNG, WEBP, etc.
+  const blob = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas toBlob failed')), 'image/jpeg', 0.92);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+
   const path = 'settings/qr.jpg';
   const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
     method: 'POST',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': file.type, 'x-upsert': 'true' },
-    body: file,
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+    body: blob,
   });
   if (up.ok) {
     const qrUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}?t=${Date.now()}`;
