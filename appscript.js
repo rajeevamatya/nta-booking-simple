@@ -62,15 +62,18 @@ function doPost(e) {
 }
 
 function uploadPayment(data) {
+  // Get or create the NTA Payment Proofs folder in Drive
   const folderName = 'NTA Payment Proofs';
   const folders = DriveApp.getFoldersByName(folderName);
   const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 
+  // Decode base64 and save the file
   const blob = Utilities.newBlob(
     Utilities.base64Decode(data.fileData), data.mimeType, data.ref + '_' + data.fileName
   );
   const file = folder.createFile(blob);
 
+  // Update booking row: status → Payment Submitted, col 13 → Drive link
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
