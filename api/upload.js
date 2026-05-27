@@ -12,16 +12,18 @@ export default async function handler(req, res) {
   if (!SCRIPT_URL) return res.status(500).json({ error: 'SCRIPT_URL not configured' });
 
   try {
-    // Step 1: probe to get the real execution URL behind Google's 302 redirect
-    const probe = await fetch(SCRIPT_URL, { method: 'GET', redirect: 'manual' });
-    const execUrl = probe.headers.get('location') || SCRIPT_URL;
-
-    // Step 2: POST directly to the execution URL — no redirect, doPost is called
-    const upstream = await fetch(execUrl, {
+    // Step 1: POST to the exec URL — this executes doPost on Google's side
+    // Google returns a 302 redirect to an echo URL where the response is stored
+    const post = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
+      redirect: 'manual'
     });
+    const echoUrl = post.headers.get('location') || SCRIPT_URL;
+
+    // Step 2: GET the echo URL to retrieve the doPost response
+    const upstream = await fetch(echoUrl, { method: 'GET' });
 
     const text = await upstream.text();
     res.setHeader('Content-Type', 'application/json');

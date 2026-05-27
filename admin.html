@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NTA Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+  :root {
+    --green: #2da870; --green-light: #e8f5ef; --green-dark: #1a6647;
+    --green-mid: #42c98a; --accent: #c8f04a;
+    --bg: #f0f3ef; --surface: #fff; --surface2: #f5f7f4;
+    --border: rgba(45,168,112,0.15); --border-mid: rgba(45,168,112,0.25);
+    --text: #1a2e24; --text-muted: #5a7468; --text-faint: #9bb5ac;
+    --radius: 12px; --radius-sm: 8px;
+    --shadow: 0 2px 12px rgba(26,122,86,0.08);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* ── LOGIN ── */
+  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  .login-card { background:var(--surface); border-radius:var(--radius); padding:2.5rem 2rem; width:340px; box-shadow:0 8px 40px rgba(0,0,0,0.12); }
+  .login-logo { display:flex; align-items:center; gap:10px; margin-bottom:2rem; }
+  .logo-mark { width:40px;height:40px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center; }
+  .logo-mark i { font-size:22px;color:var(--green-dark); }
+  .login-title { font-size:18px;font-weight:600;color:var(--text); }
+  .login-sub { font-size:12px;color:var(--text-muted);margin-top:1px; }
+  .login-card label { font-size:12px;font-weight:500;color:var(--text-muted);letter-spacing:.03em;text-transform:uppercase;display:block;margin-bottom:6px; }
+  .login-card input { width:100%;border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:11px 14px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s; }
+  .login-card input:focus { border-color:var(--green-mid); }
+  .btn-primary { width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;margin-top:1rem; }
+  .btn-primary:hover { background:var(--green-dark); }
+  .err { font-size:12px;color:#dc2626;margin-top:5px;display:none; }
+
+  /* ── MAIN LAYOUT ── */
+  #main { display:none; }
+  .topbar { background:var(--green-dark);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100; }
+  .topbar-logo { display:flex;align-items:center;gap:10px; }
+  .topbar-logo .logo-mark { width:32px;height:32px; }
+  .topbar-logo .logo-mark i { font-size:17px; }
+  .topbar-title { font-size:15px;font-weight:600;color:#fff; }
+  .topbar-sub { font-size:11px;color:rgba(255,255,255,.5); }
+  .btn-logout { background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px; }
+  .btn-logout:hover { background:rgba(255,255,255,.18); }
+
+  .container { max-width:1100px;margin:0 auto;padding:1.5rem; }
+
+  /* ── TABS ── */
+  .tabs { display:flex;gap:4px;background:var(--surface);border-radius:var(--radius);padding:5px;margin-bottom:1.25rem;box-shadow:var(--shadow);width:fit-content; }
+  .tab { padding:8px 22px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;border:none;background:transparent;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:all .15s; }
+  .tab.active { background:var(--green);color:#fff; }
+  .tab:not(.active):hover { background:var(--green-light);color:var(--green-dark); }
+
+  /* ── TOOLBAR ── */
+  .toolbar { display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap; }
+  .toolbar input { border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;min-width:200px; }
+  .toolbar input:focus { border-color:var(--green-mid); }
+  .toolbar select { border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:var(--surface);color:var(--text);cursor:pointer; }
+  .btn-export { background:var(--surface);border:1px solid var(--border-mid);color:var(--text-muted);padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px;margin-left:auto; }
+  .btn-export:hover { border-color:var(--green-mid);color:var(--green); }
+
+  /* ── TABLE ── */
+  .table-wrap { background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden; }
+  table { width:100%;border-collapse:collapse; }
+  thead th { background:var(--surface2);padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--border); }
+  tbody td { padding:11px 14px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border); }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover td { background:var(--green-light); }
+  .empty { padding:2.5rem;text-align:center;font-size:14px;color:var(--text-faint); }
+
+  /* ── BADGES ── */
+  .badge { display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;letter-spacing:.02em; }
+  .badge-verified { background:#dcfce7;color:#166534; }
+  .badge-unverified { background:#f1f5f9;color:#64748b; }
+  .badge-ranked { background:#fef3c7;color:#92400e; }
+  .badge-np { background:var(--green-light);color:var(--green-dark); }
+  .badge-intl { background:#e0f2fe;color:#0c4a6e; }
+  .badge-pending { background:#fef9c3;color:#854d0e; }
+  .badge-submitted { background:#dbeafe;color:#1e40af; }
+  .badge-paid { background:#dcfce7;color:#166534; }
+  .badge-cancelled { background:#f1f5f9;color:#6b7280; }
+
+  /* ── ACTION BUTTONS ── */
+  .action-btn { padding:5px 11px;border-radius:var(--radius-sm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid transparent;font-weight:500;display:inline-flex;align-items:center;gap:4px;transition:all .15s; }
+  .btn-verify { background:var(--green-light);color:var(--green-dark);border-color:var(--green-mid); }
+  .btn-verify:hover { background:var(--green);color:#fff; }
+  .btn-unverify { background:#f1f5f9;color:#64748b;border-color:#cbd5e1; }
+  .btn-unverify:hover { background:#e2e8f0; }
+  .btn-edit { background:#f0f9ff;color:#0369a1;border-color:#bae6fd; }
+  .btn-edit:hover { background:#e0f2fe; }
+  .btn-save { background:var(--green);color:#fff; }
+  .btn-save:hover { background:var(--green-dark); }
+  .btn-cancel-edit { background:#f1f5f9;color:#64748b;border-color:#cbd5e1; }
+  .btn-paid { background:#dcfce7;color:#166534;border-color:#86efac; }
+  .btn-paid:hover { background:#16a34a;color:#fff; }
+  .btn-cancel { background:#fef2f2;color:#dc2626;border-color:#fca5a5; }
+  .btn-cancel:hover { background:#dc2626;color:#fff; }
+  .btn-proof { background:#f0f9ff;color:#0369a1;border-color:#bae6fd; }
+  .btn-proof:hover { background:#e0f2fe; }
+
+  /* ── EDIT ROW ── */
+  .edit-input { border:1px solid var(--green-mid);border-radius:6px;padding:4px 8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:100%; }
+  .edit-select { border:1px solid var(--green-mid);border-radius:6px;padding:4px 8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:#fff; }
+
+  .loading { padding:2rem;text-align:center;color:var(--text-faint);font-size:14px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .spin { display:inline-block;animation:spin .8s linear infinite; }
+
+  .stat-row { display:flex;gap:10px;margin-bottom:1.25rem;flex-wrap:wrap; }
+  .stat { background:var(--surface);border-radius:var(--radius);padding:.9rem 1.25rem;flex:1;min-width:130px;box-shadow:var(--shadow); }
+  .stat-val { font-size:22px;font-weight:600;color:var(--green-dark); }
+  .stat-lbl { font-size:12px;color:var(--text-muted);margin-top:2px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+      <div>
+        <div class="login-title">NTA Admin</div>
+        <div class="login-sub">Nepal Tennis Association</div>
+      </div>
+    </div>
+    <label for="pw-input">Admin password</label>
+    <input type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    <p class="err" id="login-err">Incorrect password.</p>
+    <button class="btn-primary" onclick="doLogin()">
+      <i class="ti ti-lock-open"></i> Sign in
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+      <div>
+        <div class="topbar-title">NTA Admin</div>
+        <div class="topbar-sub">Nepal Tennis Association</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('members')"><i class="ti ti-users"></i> Members</button>
+      <button class="tab" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings</button>
+    </div>
+
+    <!-- MEMBERS TAB -->
+    <div id="tab-members">
+      <div id="members-stats" class="stat-row"></div>
+      <div class="toolbar">
+        <input type="text" id="member-search" placeholder="Search by name or phone…" oninput="renderMembers()">
+        <button class="btn-export" onclick="exportCSV('members')"><i class="ti ti-table-export"></i> Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Phone</th>
+              <th>Name</th>
+              <th>Nationality</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Registered</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="members-tbody">
+            <tr><td colspan="7" class="loading"><i class="ti ti-loader-2 spin"></i> Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOOKINGS TAB -->
+    <div id="tab-bookings" style="display:none">
+      <div id="bookings-stats" class="stat-row"></div>
+      <div class="toolbar">
+        <input type="text" id="booking-search" placeholder="Search by ref or name…" oninput="renderBookings()">
+        <select id="booking-status-filter" onchange="renderBookings()">
+          <option value="">All statuses</option>
+          <option>Pending Payment</option>
+          <option>Payment Submitted</option>
+          <option>Paid</option>
+          <option>Cancelled</option>
+        </select>
+        <input type="date" id="booking-date-filter" onchange="renderBookings()" style="min-width:150px">
+        <button class="btn-export" onclick="exportCSV('bookings')"><i class="ti ti-table-export"></i> Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Player</th>
+              <th>Court</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Match</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-tbody">
+            <tr><td colspan="9" class="loading"><i class="ti ti-loader-2 spin"></i> Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG — replace with your Supabase project values ──────────────────────
+const SUPABASE_URL     = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ────────────────────────────────────────────────────────────────────────────
+
+let adminPw = '';
+let allMembers = [];
+let allBookings = [];
+
+async function adminCall(action, params = {}) {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/admin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'x-admin-password': adminPw,
+    },
+    body: JSON.stringify({ action, ...params }),
+  });
+  return r.json();
+}
+
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  if (!pw) return;
+  // Test the password against the admin function
+  const btn = document.querySelector('#login-screen .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Signing in…';
+  adminPw = pw;
+  const res = await adminCall('getMembers').catch(() => ({ error: 'Network error' }));
+  if (res.error === 'Unauthorized' || res.error === 'Network error') {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('login-err').textContent = res.error === 'Network error' ? 'Network error — check your connection.' : 'Incorrect password.';
+    adminPw = '';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-lock-open"></i> Sign in';
+    return;
+  }
+  allMembers = res.members || [];
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  renderMembersStats();
+  renderMembers();
+  // Also load bookings in background
+  adminCall('getBookings').then(res => {
+    allBookings = res.bookings || [];
+    renderBookingsStats();
+    renderBookings();
+  });
+}
+
+function doLogout() {
+  adminPw = '';
+  allMembers = [];
+  allBookings = [];
+  document.getElementById('pw-input').value = '';
+  document.getElementById('login-err').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('main').style.display = 'none';
+}
+
+function showTab(tab) {
+  document.getElementById('tab-members').style.display = tab === 'members' ? 'block' : 'none';
+  document.getElementById('tab-bookings').style.display = tab === 'bookings' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'members')));
+  if (tab === 'bookings' && !allBookings.length) {
+    adminCall('getBookings').then(res => { allBookings = res.bookings || []; renderBookingsStats(); renderBookings(); });
+  }
+}
+
+// ── MEMBERS ─────────────────────────────────────────────────────────────────
+
+function renderMembersStats() {
+  const total = allMembers.length;
+  const verified = allMembers.filter(m => m.is_verified).length;
+  const ranked = allMembers.filter(m => m.is_ranked).length;
+  document.getElementById('members-stats').innerHTML = `
+    <div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Total members</div></div>
+    <div class="stat"><div class="stat-val">${verified}</div><div class="stat-lbl">Verified</div></div>
+    <div class="stat"><div class="stat-val">${ranked}</div><div class="stat-lbl">Ranked players</div></div>`;
+}
+
+function renderMembers() {
+  const q = document.getElementById('member-search').value.toLowerCase();
+  const filtered = allMembers.filter(m =>
+    !q || m.name.toLowerCase().includes(q) || m.phone.includes(q)
+  );
+  const tbody = document.getElementById('members-tbody');
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">No members found.</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(m => `
+    <tr id="mrow-${m.phone}">
+      <td style="font-family:monospace;font-size:12px">${esc(m.phone)}</td>
+      <td style="font-weight:500">${esc(m.name)}</td>
+      <td>${m.nationality === 'np'
+        ? `<span class="badge badge-np"><i class="ti ti-flag" style="font-size:10px"></i> Nepalese</span>`
+        : `<span class="badge badge-intl"><i class="ti ti-world" style="font-size:10px"></i> Non-NP</span>`}</td>
+      <td>${m.is_ranked
+        ? `<span class="badge badge-ranked"><i class="ti ti-medal" style="font-size:10px"></i> Ranked</span>`
+        : `<span style="color:var(--text-faint);font-size:12px">Recreational</span>`}</td>
+      <td>${m.is_verified
+        ? `<span class="badge badge-verified"><i class="ti ti-circle-check" style="font-size:10px"></i> Verified</span>`
+        : `<span class="badge badge-unverified"><i class="ti ti-circle" style="font-size:10px"></i> Unverified</span>`}</td>
+      <td style="color:var(--text-muted);font-size:12px">${fmtDate(m.registered_at)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        ${m.is_verified
+          ? `<button class="action-btn btn-unverify" onclick="toggleVerify('${m.phone}',false)"><i class="ti ti-circle-x"></i> Unverify</button>`
+          : `<button class="action-btn btn-verify" onclick="toggleVerify('${m.phone}',true)"><i class="ti ti-circle-check"></i> Verify</button>`}
+        <button class="action-btn btn-edit" onclick="editMember('${m.phone}')"><i class="ti ti-pencil"></i> Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function toggleVerify(phone, verified) {
+  await adminCall('updateMember', { phone, is_verified: verified });
+  const m = allMembers.find(x => x.phone === phone);
+  if (m) m.is_verified = verified;
+  renderMembersStats();
+  renderMembers();
+}
+
+function editMember(phone) {
+  const m = allMembers.find(x => x.phone === phone);
+  if (!m) return;
+  const row = document.getElementById(`mrow-${phone}`);
+  row.innerHTML = `
+    <td style="font-family:monospace;font-size:12px">${esc(m.phone)}</td>
+    <td><input class="edit-input" id="edit-name-${phone}" value="${esc(m.name)}" style="width:140px"></td>
+    <td>
+      <select class="edit-select" id="edit-nat-${phone}">
+        <option value="np" ${m.nationality==='np'?'selected':''}>Nepalese</option>
+        <option value="intl" ${m.nationality!=='np'?'selected':''}>Non-NP</option>
+      </select>
+    </td>
+    <td>
+      <select class="edit-select" id="edit-ranked-${phone}">
+        <option value="false" ${!m.is_ranked?'selected':''}>Recreational</option>
+        <option value="true" ${m.is_ranked?'selected':''}>Ranked</option>
+      </select>
+    </td>
+    <td>${m.is_verified
+      ? `<span class="badge badge-verified"><i class="ti ti-circle-check" style="font-size:10px"></i> Verified</span>`
+      : `<span class="badge badge-unverified">Unverified</span>`}</td>
+    <td style="color:var(--text-muted);font-size:12px">${fmtDate(m.registered_at)}</td>
+    <td style="display:flex;gap:6px">
+      <button class="action-btn btn-save" onclick="saveMember('${phone}')"><i class="ti ti-check"></i> Save</button>
+      <button class="action-btn btn-cancel-edit" onclick="renderMembers()"><i class="ti ti-x"></i></button>
+    </td>`;
+}
+
+async function saveMember(phone) {
+  const name = document.getElementById(`edit-name-${phone}`).value.trim();
+  const nat = document.getElementById(`edit-nat-${phone}`).value;
+  const ranked = document.getElementById(`edit-ranked-${phone}`).value === 'true';
+  if (!name) return;
+  await adminCall('updateMember', { phone, name, nationality: nat, is_ranked: ranked });
+  const m = allMembers.find(x => x.phone === phone);
+  if (m) { m.name = name; m.nationality = nat; m.is_ranked = ranked; }
+  renderMembersStats();
+  renderMembers();
+}
+
+// ── BOOKINGS ─────────────────────────────────────────────────────────────────
+
+function renderBookingsStats() {
+  const total = allBookings.length;
+  const submitted = allBookings.filter(b => b.status === 'Payment Submitted').length;
+  const paid = allBookings.filter(b => b.status === 'Paid').length;
+  const pending = allBookings.filter(b => b.status === 'Pending Payment').length;
+  document.getElementById('bookings-stats').innerHTML = `
+    <div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Total bookings</div></div>
+    <div class="stat"><div class="stat-val" style="color:#1e40af">${submitted}</div><div class="stat-lbl">Awaiting review</div></div>
+    <div class="stat"><div class="stat-val" style="color:#166534">${paid}</div><div class="stat-lbl">Paid & confirmed</div></div>
+    <div class="stat"><div class="stat-val" style="color:#854d0e">${pending}</div><div class="stat-lbl">Pending payment</div></div>`;
+}
+
+function renderBookings() {
+  const q = (document.getElementById('booking-search')?.value || '').toLowerCase();
+  const statusF = document.getElementById('booking-status-filter')?.value || '';
+  const dateF = document.getElementById('booking-date-filter')?.value || '';
+  const filtered = allBookings.filter(b => {
+    if (statusF && b.status !== statusF) return false;
+    if (dateF && b.date !== dateF) return false;
+    if (q && !b.ref.toLowerCase().includes(q) && !b.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const tbody = document.getElementById('bookings-tbody');
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">No bookings found.</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(b => `
+    <tr>
+      <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
+      <td>${esc(b.name)}<br><span style="font-size:11px;color:var(--text-muted)">${esc(b.phone)}</span></td>
+      <td style="text-align:center;font-weight:600">Court ${b.court}</td>
+      <td style="font-size:12px">${fmtDateShort(b.date)}</td>
+      <td style="font-size:12px">${esc(b.time_label)}</td>
+      <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
+      <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap">
+        ${b.proof_url ? `<a href="${b.proof_url}" target="_blank" class="action-btn btn-proof"><i class="ti ti-photo"></i> Proof</a>` : ''}
+        ${b.status === 'Payment Submitted' ? `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>` : ''}
+        ${b.status !== 'Cancelled' && b.status !== 'Paid' ? `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-x"></i> Cancel</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+async function updateBooking(id, status) {
+  await adminCall('updateBooking', { id, status });
+  const b = allBookings.find(x => x.id === id);
+  if (b) b.status = status;
+  renderBookingsStats();
+  renderBookings();
+}
+
+function statusBadge(s) {
+  const map = {
+    'Pending Payment': 'badge-pending',
+    'Payment Submitted': 'badge-submitted',
+    'Paid': 'badge-paid',
+    'Cancelled': 'badge-cancelled',
+  };
+  return `<span class="badge ${map[s] || ''}">${esc(s)}</span>`;
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────────────────────
+
+async function exportCSV(type) {
+  const res = await adminCall('exportCSV', { type });
+  // res is the CSV text (the admin function returns text/csv, but fetch returns JSON here)
+  // We need to call the endpoint differently for CSV
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/admin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'x-admin-password': adminPw,
+    },
+    body: JSON.stringify({ action: 'exportCSV', type }),
+  });
+  const csv = await r.text();
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${type}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+function fmtDateShort(d) { return d ? new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : ''; }
+</script>
+</body>
+</html>
