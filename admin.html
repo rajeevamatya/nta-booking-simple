@@ -645,7 +645,7 @@ function renderBookings() {
     if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
     if (b.status === 'Paid') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Payment Submitted')"><i class="ti ti-arrow-back-up"></i> Undo paid</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
-    const proofIcon = (hasProof && canPay)
+    const proofIcon = hasProof
       ? `<button onclick="openProofModal('${b.id}')" title="View proof" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-photo" style="font-size:13px"></i></button>`
       : '';
     return `
