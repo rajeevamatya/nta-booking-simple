@@ -1253,10 +1253,29 @@ function updateClosureBanner() {
     if (banner) banner.style.display = 'none';
     return;
   }
-  const today  = new Date().toISOString().split('T')[0];
-  const active = CONFIG.closureFrom <= today && (!CONFIG.closureTo || CONFIG.closureTo >= today);
-  text.textContent  = CONFIG.closureMessage;
-  banner.style.display = active ? 'flex' : 'none';
+  const today = new Date().toISOString().split('T')[0];
+
+  // Show 7 days before closure starts
+  const warn = new Date(CONFIG.closureFrom);
+  warn.setDate(warn.getDate() - 7);
+  const warnDate = warn.toISOString().split('T')[0];
+
+  const isActive   = CONFIG.closureFrom <= today && (!CONFIG.closureTo || CONFIG.closureTo >= today);
+  const isUpcoming = !isActive && today >= warnDate;
+
+  if (isActive) {
+    text.textContent = CONFIG.closureMessage;
+  } else if (isUpcoming) {
+    text.textContent = `Upcoming closure from ${fmtDate(CONFIG.closureFrom)}${CONFIG.closureTo ? ' to ' + fmtDate(CONFIG.closureTo) : ''}: ${CONFIG.closureMessage}`;
+  }
+  banner.style.display = (isActive || isUpcoming) ? 'flex' : 'none';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]}`;
 }
 
 // ── BOOKING STATUS (screen-paid) ──────────────────────────────────────────────
