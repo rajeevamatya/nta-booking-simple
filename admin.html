@@ -470,14 +470,10 @@ function renderBookings() {
     const hasProof = !!b.proof_url;
     const canPay = b.status === 'Payment Submitted';
     const canCancel = b.status !== 'Cancelled' && b.status !== 'Paid';
-    // If there's a proof URL, actions go in the modal. Otherwise show inline.
     let actions = '';
-    if (hasProof) {
-      actions = `<button class="action-btn btn-proof" onclick="openProofModal('${b.id}')"><i class="ti ti-photo"></i> View proof</button>`;
-    } else {
-      if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
-      if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
-    }
+    if (hasProof) actions += `<button class="action-btn btn-proof" onclick="openProofModal('${b.id}')"><i class="ti ti-photo"></i> View proof</button>`;
+    if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
+    if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
     return `
     <tr>
       <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
