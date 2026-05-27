@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NTA Court Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+  :root {
+    --green: #2da870;
+    --green-light: #e8f5ef;
+    --green-mid: #42c98a;
+    --green-dark: #1a6647;
+    --accent: #c8f04a;
+    --accent-dark: #8fb82e;
+    --bg: #f5f7f4;
+    --surface: #ffffff;
+    --surface2: #f0f3ef;
+    --border: rgba(45,168,112,0.15);
+    --border-mid: rgba(45,168,112,0.25);
+    --text: #1a2e24;
+    --text-muted: #5a7468;
+    --text-faint: #9bb5ac;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 2px 12px rgba(26,122,86,0.08);
+    --shadow-md: 0 4px 24px rgba(26,122,86,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #d6ddd8;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 8px 40px rgba(0,0,0,0.18);
+  }
+
+  /* ── SCREEN TRANSITIONS ── */
+  .screen { display: none; animation: fadeUp 0.25s ease; padding: 0 0 2rem; }
+  .screen.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── HEADER BAND ── */
+  .header-band {
+    background: var(--green-dark);
+    padding: 1.5rem 1.25rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .header-band::before {
+    content: '';
+    position: absolute;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(200,240,74,0.07);
+    top: -80px; right: -60px;
+  }
+  .header-band::after {
+    content: '';
+    position: absolute;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(47,168,118,0.12);
+    bottom: -40px; left: 20px;
+  }
+  .nta-logo { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
+  .logo-mark {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-mark i { font-size: 22px; color: var(--green-dark); }
+  .logo-text { }
+  .logo-name { font-family: 'DM Serif Display', serif; font-size: 15px; color: #fff; line-height: 1.2; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.55); letter-spacing: 0.04em; margin-top: 1px; }
+
+  .header-tagline {
+    margin-top: 1.25rem;
+    position: relative; z-index: 1;
+  }
+  .header-tagline h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .header-tagline p { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 4px; }
+
+  /* ── BACK BUTTON ── */
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-muted); font-size: 13px; cursor: pointer;
+    background: none; border: none; font-family: 'DM Sans', sans-serif;
+    padding: 1rem 1.25rem 0.5rem;
+  }
+  .back-btn i { font-size: 17px; }
+
+  /* ── CONTENT AREA ── */
+  .content { padding: 1.25rem; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .sec-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .sec-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.25rem; }
+  .field-label { font-size: 12px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.03em; text-transform: uppercase; margin-bottom: 7px; display: block; }
+
+  /* ── INPUTS ── */
+  input[type=tel], input[type=text], input[type=date] {
+    width: 100%;
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
+    font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(47,168,118,0.12); }
+  input[readonly] { background: var(--surface2); color: var(--text-muted); cursor: default; }
+  .field-group { margin-bottom: 1rem; }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    width: 100%; padding: 13px;
+    background: var(--green);
+    color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-primary:active { transform: scale(0.98); background: var(--green-dark); }
+  .btn-primary:hover { background: var(--green-dark); }
+
+  .btn-accent {
+    width: 100%; padding: 13px;
+    background: var(--accent);
+    color: var(--green-dark);
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-accent:active { transform: scale(0.98); }
+  .btn-accent:hover { background: #b8e040; }
+
+  .btn-ghost {
+    width: 100%; padding: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 400;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-ghost:hover { background: var(--surface2); }
+
+  .btn-whatsapp {
+    width: 100%; padding: 13px;
+    background: #25D366;
+    color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 8px;
+  }
+  .btn-whatsapp:hover { background: #1ebc58; }
+
+  /* ── TOGGLE PILLS ── */
+  .toggle-row { display: flex; gap: 8px; }
+  .toggle-btn {
+    flex: 1; padding: 10px 8px;
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 14px; cursor: pointer;
+    background: var(--surface); color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s; text-align: center;
+  }
+  .toggle-btn.selected {
+    background: var(--green-light);
+    border-color: var(--green-mid);
+    color: var(--green-dark);
+    font-weight: 500;
+  }
+
+  /* ── SLOT LIST ── */
+  .slots-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .slot-cell {
+    padding: 11px 14px;
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text-muted);
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .slot-cell:hover { border-color: var(--green-mid); color: var(--green); }
+  .slot-cell.sel-first {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+    font-weight: 500;
+    border-radius: var(--radius-sm) var(--radius-sm) 4px 4px;
+  }
+  .slot-cell.sel-second {
+    background: var(--green-mid);
+    border-color: var(--green-mid);
+    color: #fff;
+    font-weight: 500;
+    border-radius: 4px 4px var(--radius-sm) var(--radius-sm);
+    margin-top: -3px;
+  }
+  .slot-cell.sel-single {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+    font-weight: 500;
+  }
+  .slot-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.2);
+  }
+
+  /* ── COURT GRID ── */
+  .court-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+  .court-card {
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-sm);
+    padding: 14px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface);
+  }
+  .court-card.available:hover { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(47,168,118,0.1); }
+  .court-card.booked { background: var(--surface2); opacity: 0.45; cursor: not-allowed; }
+  .court-card.selected { background: var(--green-light); border-color: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .court-num { font-size: 22px; font-weight: 600; color: var(--text); }
+  .court-icon { font-size: 20px; color: var(--green-mid); margin-bottom: 4px; }
+  .court-icon.taken { color: var(--text-faint); }
+  .court-lbl { font-size: 11px; margin-top: 4px; font-weight: 500; }
+  .lbl-free { color: var(--green); }
+  .lbl-taken { color: var(--text-faint); }
+
+  /* ── USER CHIP ── */
+  .user-chip {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .avatar {
+    width: 38px; height: 38px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: #fff;
+    flex-shrink: 0;
+  }
+  .chip-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .chip-phone { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 20px;
+    letter-spacing: 0.02em;
+  }
+  .badge-ranked { background: #fef3c7; color: #92400e; }
+  .badge-np { background: var(--green-light); color: var(--green-dark); }
+  .badge-intl { background: #e0f2fe; color: #0c4a6e; }
+
+  /* ── DIVIDER ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  /* ── INFO ROWS ── */
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .info-label { font-size: 13px; color: var(--text-muted); }
+  .info-val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* ── COURTS SUBHEADER ── */
+  .courts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .time-pill {
+    background: var(--green-light);
+    color: var(--green-dark);
+    font-size: 12px; font-weight: 500;
+    padding: 4px 12px; border-radius: 20px;
+  }
+  .select-hint { text-align: center; font-size: 13px; color: var(--text-faint); padding: 0.75rem 0 0.25rem; }
+
+  /* ── CONFIRM BAR ── */
+  .confirm-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-md);
+    animation: fadeUp 0.2s ease;
+  }
+  .confirm-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+
+  /* ── SUCCESS SCREEN ── */
+  .success-ring {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--green-light);
+    border: 3px solid var(--green-mid);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+    animation: pop 0.3s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0.7); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .success-ring i { font-size: 32px; color: var(--green); }
+
+  /* ── BOOKING REF ── */
+  .booking-ref {
+    background: var(--green-dark);
+    color: rgba(255,255,255,0.6);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .ref-num { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: 0.1em; margin-top: 4px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .copy-btn {
+    background: rgba(255,255,255,0.12);
+    border: none; border-radius: 6px;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 14px;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
+  .copy-btn.copied { background: rgba(200,240,74,0.25); color: var(--accent); }
+
+  /* ── PAYMENT SECTION ── */
+  .payment-note {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; gap: 10px;
+    margin-bottom: 1rem;
+  }
+  .payment-note i { font-size: 18px; color: #d97706; flex-shrink: 0; margin-top: 1px; }
+  .payment-note-text { font-size: 13px; color: #78350f; line-height: 1.5; }
+  .payment-note strong { font-weight: 600; }
+
+  .upload-area {
+    border: 1.5px dashed var(--border-mid);
+    border-radius: var(--radius-sm);
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface2);
+    margin-bottom: 8px;
+  }
+  .upload-area:hover { border-color: var(--green-mid); background: var(--green-light); }
+  .upload-area.uploaded { border-color: var(--green); background: var(--green-light); }
+  .upload-icon { font-size: 28px; color: var(--green-mid); margin-bottom: 6px; }
+  .upload-text { font-size: 13px; color: var(--text-muted); }
+  .upload-text strong { color: var(--green); }
+  .upload-filename { font-size: 12px; color: var(--green-dark); margin-top: 4px; font-weight: 500; }
+  #file-input { display: none; }
+
+  /* ── TIMER ── */
+  .timer-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 1rem;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .timer-bar i { font-size: 16px; color: var(--green); }
+  #timer-count { font-weight: 600; color: var(--green-dark); font-size: 14px; }
+  #timer-count.urgent { color: #dc2626; }
+
+  /* ── ERROR ── */
+  .err { font-size: 12px; color: #dc2626; margin-top: 5px; display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LOGIN -->
+  <div id="screen-login" class="screen active">
+    <div class="header-band">
+      <div class="nta-logo">
+        <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+        <div class="logo-text">
+          <div class="logo-name">Nepal Tennis Association</div>
+          <div class="logo-sub">COURT BOOKING SYSTEM</div>
+        </div>
+      </div>
+      <div class="header-tagline">
+        <h1>Reserve your<br>court today</h1>
+        <p>Fast, simple court bookings for NTA members</p>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label" for="mobile-input">Your mobile number</label>
+          <input type="tel" id="mobile-input" placeholder="98XXXXXXXX" maxlength="10" onkeydown="if(event.key==='Enter')checkMobile()">
+          <p class="err" id="mobile-err">Please enter a valid 10-digit number.</p>
+        </div>
+        <button class="btn-primary" onclick="checkMobile()">
+          <i class="ti ti-arrow-right"></i> Continue
+        </button>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:-4px">
+        <i class="ti ti-shield-check" style="font-size:13px;vertical-align:-2px"></i> Members &amp; registered guests only
+      </p>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="screen-register" class="screen">
+    <div class="header-band" style="padding-bottom:1rem">
+      <div class="nta-logo">
+        <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+        <div class="logo-text">
+          <div class="logo-name">Nepal Tennis Association</div>
+          <div class="logo-sub">COURT BOOKING SYSTEM</div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <button class="back-btn" style="padding:0 0 0.75rem" onclick="show('screen-login')"><i class="ti ti-arrow-left"></i> Back</button>
+      <div class="sec-title">New player registration</div>
+      <div class="sec-sub">Number not found — fill in your details below.</div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label" for="reg-name">Full name</label>
+          <input type="text" id="reg-name" placeholder="e.g. Arjun Shrestha">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Mobile number</label>
+          <input type="tel" id="reg-mobile" readonly>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Nationality</label>
+          <div class="toggle-row">
+            <div class="toggle-btn selected" id="nat-np" onclick="selNat('np')">
+              <i class="ti ti-flag" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Nepalese
+            </div>
+            <div class="toggle-btn" id="nat-intl" onclick="selNat('intl')">
+              <i class="ti ti-world" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Non-Nepalese
+            </div>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Player type</label>
+          <div class="toggle-row">
+            <div class="toggle-btn" id="rank-yes" onclick="selRank('yes')">
+              <i class="ti ti-medal" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Ranked
+            </div>
+            <div class="toggle-btn selected" id="rank-no" onclick="selRank('no')">
+              <i class="ti ti-user" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Recreational
+            </div>
+          </div>
+        </div>
+        <p class="err" id="reg-err">Please enter your full name.</p>
+        <button class="btn-primary" onclick="doRegister()">
+          <i class="ti ti-user-plus"></i> Register &amp; continue
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING -->
+  <div id="screen-booking" class="screen">
+    <div class="header-band" style="padding-bottom:1rem">
+      <div class="nta-logo">
+        <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+        <div class="logo-text">
+          <div class="logo-name">Nepal Tennis Association</div>
+          <div class="logo-sub">COURT BOOKING SYSTEM</div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <div id="user-chip"></div>
+      <div class="sec-title">Book a court</div>
+      <div class="sec-sub">Select a date then choose 1 or 2 consecutive hourly slots.</div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label" for="book-date"><i class="ti ti-calendar" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Date</label>
+          <input type="date" id="book-date" onchange="onDateChange()">
+        </div>
+        <div class="field-group">
+          <label class="field-label"><i class="ti ti-users" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Match type</label>
+          <div class="toggle-row">
+            <div class="toggle-btn selected" id="type-singles" onclick="selType('singles')" style="font-size:12px;white-space:nowrap">
+              <i class="ti ti-user" style="font-size:12px;vertical-align:-2px;margin-right:4px"></i>Singles · Rs. 400/hr
+            </div>
+            <div class="toggle-btn" id="type-doubles" onclick="selType('doubles')" style="font-size:12px;white-space:nowrap">
+              <i class="ti ti-users" style="font-size:12px;vertical-align:-2px;margin-right:4px"></i>Doubles · Rs. 600/hr
+            </div>
+          </div>
+        </div>
+        <div id="slots-section" style="display:none">
+          <label class="field-label" style="margin-bottom:10px">
+            <i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Time slot
+            <span style="font-weight:400;color:var(--text-faint);text-transform:none;letter-spacing:0;font-size:12px"> — tap up to 2 consecutive hours</span>
+          </label>
+          <div class="slots-wrap" id="slots-list"></div>
+          <p class="err" id="slot-err" style="margin-top:8px">Please select at least one slot.</p>
+        </div>
+      </div>
+
+      <div id="courts-section" style="display:none">
+        <div class="courts-header">
+          <div class="sec-title" style="margin-bottom:0">Available courts</div>
+          <div class="time-pill" id="courts-pill"></div>
+        </div>
+        <div class="court-grid" id="court-grid"></div>
+        <p class="select-hint" id="select-hint">
+          <i class="ti ti-hand-click" style="font-size:15px;vertical-align:-3px;margin-right:4px"></i>Tap a free court to select it
+        </p>
+        <div id="confirm-bar" style="display:none" class="confirm-bar">
+          <div class="confirm-title"><i class="ti ti-clipboard-check" style="font-size:15px;vertical-align:-2px;margin-right:6px;color:var(--green)"></i>Booking summary</div>
+          <div class="info-row"><span class="info-label">Court</span><span class="info-val" id="sum-court"></span></div>
+          <div class="info-row"><span class="info-label">Date</span><span class="info-val" id="sum-date"></span></div>
+          <div class="info-row"><span class="info-label">Time</span><span class="info-val" id="sum-time"></span></div>
+          <div class="info-row"><span class="info-label">Duration</span><span class="info-val" id="sum-dur"></span></div>
+          <div class="info-row"><span class="info-label">Match</span><span class="info-val" id="sum-type"></span></div>
+          <div class="info-row" style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">
+            <span class="info-label" style="font-weight:600;color:var(--text)">Total</span>
+            <span class="info-val" style="font-size:16px;font-weight:600;color:var(--green-dark)" id="sum-price"></span>
+          </div>
+          <hr>
+          <button class="btn-accent" onclick="confirmBooking()">
+            <i class="ti ti-check"></i> Confirm booking
+          </button>
+          <button class="btn-ghost" onclick="clearCourt()">
+            <i class="ti ti-arrow-back-up"></i> Change selection
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS / PAYMENT -->
+  <div id="screen-success" class="screen">
+    <div class="header-band" style="padding-bottom:1rem">
+      <div class="nta-logo">
+        <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+        <div class="logo-text">
+          <div class="logo-name">Nepal Tennis Association</div>
+          <div class="logo-sub">COURT BOOKING SYSTEM</div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <div style="text-align:center;padding:0.75rem 0 1rem">
+        <div class="success-ring"><i class="ti ti-check"></i></div>
+        <div class="sec-title" style="font-size:20px">Booking confirmed!</div>
+        <p style="font-size:14px;color:var(--text-muted);margin-top:4px">Your court is held for 10 minutes.</p>
+      </div>
+
+      <div class="booking-ref">
+        Booking reference
+        <div class="ref-num">
+          <span id="conf-ref"></span>
+          <button class="copy-btn" id="copy-ref-btn" onclick="copyRef()" title="Copy reference">
+            <i class="ti ti-copy"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1rem">
+        <div class="info-row"><span class="info-label"><i class="ti ti-tournament" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Court</span><span class="info-val" id="conf-court"></span></div>
+        <div class="info-row"><span class="info-label"><i class="ti ti-calendar" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Date</span><span class="info-val" id="conf-date"></span></div>
+        <div class="info-row"><span class="info-label"><i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Time</span><span class="info-val" id="conf-time"></span></div>
+        <div class="info-row"><span class="info-label"><i class="ti ti-user" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Player</span><span class="info-val" id="conf-player"></span></div>
+        <div class="info-row"><span class="info-label"><i class="ti ti-users" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Match</span><span class="info-val" id="conf-type"></span></div>
+        <div class="info-row" style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">
+          <span class="info-label" style="font-weight:600;color:var(--text)">Total due</span>
+          <span class="info-val" style="font-size:16px;font-weight:600;color:var(--green-dark)" id="conf-price"></span>
+        </div>
+      </div>
+
+      <div class="timer-bar">
+        <i class="ti ti-alarm"></i>
+        <span>Payment required within <span id="timer-count">10:00</span></span>
+      </div>
+
+      <div class="payment-note">
+        <i class="ti ti-alert-triangle"></i>
+        <div class="payment-note-text">
+          <strong>Complete payment to confirm your reservation.</strong> Upload proof below, or send via WhatsApp to NTA staff. Bookings without payment within 10 minutes will be released.
+        </div>
+      </div>
+
+      <div class="sec-title" style="margin-bottom:10px;font-size:15px">
+        <i class="ti ti-credit-card" style="font-size:15px;vertical-align:-2px;margin-right:6px;color:var(--green)"></i>Payment proof
+      </div>
+
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon" id="upload-icon-el"><i class="ti ti-photo-up"></i></div>
+        <div class="upload-text" id="upload-text-el"><strong>Tap to upload</strong> screenshot or photo<br>of your payment</div>
+        <div class="upload-filename" id="upload-filename"></div>
+      </div>
+      <input type="file" id="file-input" accept="image/*,.pdf" onchange="handleUpload(this)">
+
+      <button class="btn-primary" id="submit-payment-btn" onclick="submitPayment()" style="display:none">
+        <i class="ti ti-send"></i> Submit payment proof
+      </button>
+
+      <button class="btn-whatsapp" onclick="sendWhatsapp()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.535 5.858L.057 23.5l5.77-1.516A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.898 0-3.68-.514-5.21-1.411l-.374-.221-3.425.9.914-3.338-.243-.386A9.944 9.944 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+        Send via WhatsApp to NTA staff
+      </button>
+
+      <hr style="margin:1.25rem 0">
+      <button class="btn-ghost" onclick="bookAnother()">
+        <i class="ti ti-plus"></i> Book another court
+      </button>
+      <button class="btn-ghost" onclick="logout()" style="margin-top:6px">
+        <i class="ti ti-logout"></i> Done / Log out
+      </button>
+    </div>
+  </div>
+
+  <!-- PAYMENT SUBMITTED -->
+  <div id="screen-paid" class="screen">
+    <div class="header-band" style="padding-bottom:1rem">
+      <div class="nta-logo">
+        <div class="logo-mark"><i class="ti ti-tournament"></i></div>
+        <div class="logo-text">
+          <div class="logo-name">Nepal Tennis Association</div>
+          <div class="logo-sub">COURT BOOKING SYSTEM</div>
+        </div>
+      </div>
+    </div>
+    <div class="content" style="text-align:center;padding-top:2rem">
+      <div class="success-ring" style="background:#e0f2fe;border-color:#38bdf8">
+        <i class="ti ti-check" style="color:#0284c7"></i>
+      </div>
+      <div class="sec-title" style="font-size:20px">Payment submitted!</div>
+      <p style="font-size:14px;color:var(--text-muted);margin-top:6px;line-height:1.6">NTA staff will verify your payment<br>and confirm your court shortly.</p>
+      <div style="margin:1.5rem 0">
+        <div class="booking-ref" style="display:inline-block;padding:10px 24px">
+          <span>Your reference</span>
+          <div class="ref-num" id="paid-ref"></div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="bookAnother()" style="margin-bottom:8px">
+        <i class="ti ti-plus"></i> Book another
+      </button>
+      <button class="btn-ghost" onclick="logout()">
+        <i class="ti ti-logout"></i> Done
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+const KNOWN = {
+  '9841000001': { name:'Rohan Maharjan', nat:'np', ranked:true },
+  '9800111222': { name:'Priya Thapa', nat:'np', ranked:false },
+  '9851234567': { name:'James Miller', nat:'intl', ranked:true }
+};
+const NTA_WHATSAPP = '9779841000000';
+
+let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles' };
+let timerInterval = null;
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function fmt12(h) {
+  if (h===0) return '12:00 AM';
+  if (h===12) return '12:00 PM';
+  return h<12 ? h+':00 AM' : (h-12)+':00 PM';
+}
+function fmtRange(slots) {
+  if (!slots.length) return '';
+  return fmt12(slots[0]) + ' – ' + fmt12(slots[slots.length-1]+1);
+}
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+function genRef() {
+  return 'NTA-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
+}
+
+function checkMobile() {
+  const v = document.getElementById('mobile-input').value.trim();
+  const err = document.getElementById('mobile-err');
+  if (!/^\d{10}$/.test(v)) { err.style.display='block'; return; }
+  err.style.display='none';
+  S.mobile = v;
+  if (KNOWN[v]) { S.user=KNOWN[v]; renderChip(); show('screen-booking'); initDate(); }
+  else { document.getElementById('reg-mobile').value=v; show('screen-register'); }
+}
+
+function getPrice() {
+  const rate = S.matchType==='singles' ? 400 : 600;
+  return rate * S.slots.length;
+}
+function selType(v) {
+  S.matchType=v;
+  document.getElementById('type-singles').className='toggle-btn'+(v==='singles'?' selected':'');
+  document.getElementById('type-doubles').className='toggle-btn'+(v==='doubles'?' selected':'');
+  if (S.court) {
+    document.getElementById('sum-type').textContent=v==='singles'?'Singles':'Doubles';
+    document.getElementById('sum-price').textContent='Rs. '+getPrice().toLocaleString();
+  }
+}
+function selNat(v) {
+  S.nat=v;
+  document.getElementById('nat-np').className='toggle-btn'+(v==='np'?' selected':'');
+  document.getElementById('nat-intl').className='toggle-btn'+(v==='intl'?' selected':'');
+}
+function selRank(v) {
+  S.ranked=v;
+  document.getElementById('rank-yes').className='toggle-btn'+(v==='yes'?' selected':'');
+  document.getElementById('rank-no').className='toggle-btn'+(v==='no'?' selected':'');
+}
+function doRegister() {
+  const name=document.getElementById('reg-name').value.trim();
+  if (!name) { document.getElementById('reg-err').style.display='block'; return; }
+  document.getElementById('reg-err').style.display='none';
+  S.user={name, nat:S.nat, ranked:S.ranked==='yes'};
+  KNOWN[S.mobile]=S.user;
+  renderChip(); show('screen-booking'); initDate();
+}
+
+function renderChip() {
+  const u=S.user;
+  const ini=u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const natBadge=u.nat==='np'
+    ?'<span class="badge badge-np">NP</span>'
+    :'<span class="badge badge-intl">Intl</span>';
+  const rankBadge=u.ranked?'<span class="badge badge-ranked"><i class="ti ti-medal" style="font-size:10px;vertical-align:-1px"></i> Ranked</span>':'';
+  document.getElementById('user-chip').innerHTML=`
+    <div class="user-chip">
+      <div class="avatar">${ini}</div>
+      <div>
+        <div class="chip-name">${u.name} ${rankBadge} ${natBadge}</div>
+        <div class="chip-phone">${S.mobile}</div>
+      </div>
+    </div>`;
+}
+
+function initDate() {
+  const d=document.getElementById('book-date');
+  const today=new Date().toISOString().split('T')[0];
+  d.min=today; d.value=today;
+  S.date=today; S.slots=[]; S.court=null;
+  renderSlots(); hideCourts();
+}
+function onDateChange() {
+  S.date=document.getElementById('book-date').value;
+  S.slots=[]; S.court=null;
+  renderSlots(); hideCourts();
+}
+
+function renderSlots() {
+  const sec=document.getElementById('slots-section');
+  if (!S.date) { sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('slots-list').innerHTML=HOURS.map(h=>{
+    const label=fmt12(h)+' – '+fmt12(h+1);
+    return `<div class="slot-cell" id="slot-${h}" data-h="${h}" onclick="toggleSlot(${h})">${label}<span class="slot-badge" id="slot-badge-${h}" style="display:none">2nd hour</span></div>`;
+  }).join('');
+}
+
+function toggleSlot(h) {
+  const cur=S.slots;
+  if (cur.includes(h)) {
+    S.slots = cur.length===2 ? [h===cur[0]?cur[1]:cur[0]] : [];
+  } else {
+    if (!cur.length) {
+      S.slots=[h];
+    } else if (cur.length===1 && Math.abs(h-cur[0])===1) {
+      S.slots=[Math.min(h,cur[0]),Math.max(h,cur[0])];
+    } else {
+      S.slots=[h];
+    }
+  }
+  document.getElementById('slot-err').style.display='none';
+  updateSlotUI();
+  if (S.slots.length) renderCourts(); else hideCourts();
+}
+
+function updateSlotUI() {
+  HOURS.forEach(h=>{
+    const el=document.getElementById('slot-'+h);
+    const badge=document.getElementById('slot-badge-'+h);
+    if (!el) return;
+    badge.style.display='none';
+    if (S.slots.length===1 && S.slots[0]===h) {
+      el.className='slot-cell sel-single';
+    } else if (S.slots.length===2 && S.slots[0]===h) {
+      el.className='slot-cell sel-first';
+    } else if (S.slots.length===2 && S.slots[1]===h) {
+      el.className='slot-cell sel-second';
+      badge.style.display='inline';
+    } else {
+      el.className='slot-cell';
+    }
+  });
+}
+
+function pseudoTaken(date, h) {
+  let seed=0;
+  for (let c of (date+h)) seed=(seed*31+c.charCodeAt(0))&0xfffff;
+  const taken=[];
+  for (let c=1;c<=6;c++) { if(((seed*c*7+c*13)%11)<3) taken.push(c); }
+  return taken;
+}
+function takenForSlots(date,slots) {
+  if (slots.length===1) return pseudoTaken(date,slots[0]);
+  return [...new Set([...pseudoTaken(date,slots[0]),...pseudoTaken(date,slots[1])])];
+}
+
+function renderCourts() {
+  S.court=null;
+  const taken=takenForSlots(S.date,S.slots);
+  document.getElementById('courts-pill').textContent=fmtRange(S.slots);
+  const grid=document.getElementById('court-grid');
+  grid.innerHTML='';
+  for (let c=1;c<=6;c++) {
+    const isTaken=taken.includes(c);
+    const div=document.createElement('div');
+    div.className='court-card '+(isTaken?'booked':'available');
+    div.innerHTML=`
+      <div class="${isTaken?'court-icon taken':'court-icon'}"><i class="ti ti-tournament"></i></div>
+      <div class="court-num">${c}</div>
+      <div class="court-lbl ${isTaken?'lbl-taken':'lbl-free'}">${isTaken?'Booked':'Free'}</div>`;
+    if (!isTaken) div.onclick=()=>selectCourt(div,c);
+    grid.appendChild(div);
+  }
+  document.getElementById('courts-section').style.display='block';
+  document.getElementById('confirm-bar').style.display='none';
+  document.getElementById('select-hint').style.display='block';
+}
+
+function hideCourts() {
+  document.getElementById('courts-section').style.display='none';
+  document.getElementById('confirm-bar').style.display='none';
+  S.court=null;
+}
+
+function selectCourt(el,c) {
+  document.querySelectorAll('.court-card').forEach(x=>{
+    if (x.classList.contains('selected')) { x.classList.remove('selected'); x.classList.add('available'); }
+  });
+  el.classList.remove('available'); el.classList.add('selected');
+  S.court=c;
+  document.getElementById('sum-court').textContent='Court '+c;
+  document.getElementById('sum-date').textContent=fmtDate(S.date);
+  document.getElementById('sum-time').textContent=fmtRange(S.slots);
+  document.getElementById('sum-dur').textContent=S.slots.length===2?'2 hours':'1 hour';
+  document.getElementById('sum-type').textContent=S.matchType==='singles'?'Singles':'Doubles';
+  document.getElementById('sum-price').textContent='Rs. '+getPrice().toLocaleString();
+  document.getElementById('select-hint').style.display='none';
+  document.getElementById('confirm-bar').style.display='block';
+}
+
+function clearCourt() {
+  document.querySelectorAll('.court-card.selected').forEach(x=>{x.classList.remove('selected');x.classList.add('available');});
+  S.court=null;
+  document.getElementById('confirm-bar').style.display='none';
+  document.getElementById('select-hint').style.display='block';
+}
+
+function confirmBooking() {
+  S.ref=genRef();
+  document.getElementById('conf-ref').textContent=S.ref;
+  document.getElementById('conf-court').textContent='Court '+S.court;
+  document.getElementById('conf-date').textContent=fmtDate(S.date);
+  document.getElementById('conf-time').textContent=fmtRange(S.slots)+' ('+S.slots.length+' hr)';
+  document.getElementById('conf-player').textContent=S.user.name;
+  document.getElementById('conf-type').textContent=S.matchType==='singles'?'Singles':'Doubles';
+  document.getElementById('conf-price').textContent='Rs. '+getPrice().toLocaleString();
+  document.getElementById('upload-area').className='upload-area';
+  document.getElementById('upload-icon-el').innerHTML='<i class="ti ti-photo-up"></i>';
+  document.getElementById('upload-text-el').innerHTML='<strong>Tap to upload</strong> screenshot or photo<br>of your payment';
+  document.getElementById('upload-filename').textContent='';
+  document.getElementById('submit-payment-btn').style.display='none';
+  show('screen-success');
+  startTimer();
+}
+
+function copyRef() {
+  const text = S.ref;
+  const btn = document.getElementById('copy-ref-btn');
+  // Copy via textarea (works in all contexts)
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-999px;left:-999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  // Also try modern API silently
+  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(()=>{});
+  // Always show visual feedback
+  btn.classList.add('copied');
+  btn.innerHTML = '<i class="ti ti-check"></i>';
+  setTimeout(() => {
+    btn.classList.remove('copied');
+    btn.innerHTML = '<i class="ti ti-copy"></i>';
+  }, 1800);
+}
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  let secs=600;
+  const el=document.getElementById('timer-count');
+  el.className='';
+  function tick() {
+    const m=Math.floor(secs/60), s=secs%60;
+    el.textContent=m+':'+(s<10?'0':'')+s;
+    if (secs<=60) el.className='urgent';
+    if (secs<=0) { clearInterval(timerInterval); el.textContent='Expired'; }
+    secs--;
+  }
+  tick();
+  timerInterval=setInterval(tick,1000);
+}
+
+function handleUpload(input) {
+  if (!input.files.length) return;
+  const file=input.files[0];
+  document.getElementById('upload-area').className='upload-area uploaded';
+  document.getElementById('upload-icon-el').innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i>';
+  document.getElementById('upload-text-el').innerHTML='<strong style="color:var(--green)">File selected</strong>';
+  document.getElementById('upload-filename').textContent=file.name;
+  document.getElementById('submit-payment-btn').style.display='flex';
+}
+
+function submitPayment() {
+  if (timerInterval) clearInterval(timerInterval);
+  document.getElementById('paid-ref').textContent=S.ref;
+  show('screen-paid');
+}
+
+function sendWhatsapp() {
+  const msg=encodeURIComponent(
+    'Here\'s my payment for Ref: '+S.ref+' 🎾\n\n'+
+    '📋 Booking details:\n'+
+    '• Court '+S.court+' · '+(S.matchType==='singles'?'Singles':'Doubles')+'\n'+
+    '• '+fmtDate(S.date)+'\n'+
+    '• '+fmtRange(S.slots)+'\n'+
+    '• Total: Rs. '+getPrice().toLocaleString()+'\n\n'+
+    'Payment proof attached. Please confirm. Thanks!'
+  );
+  window.open('https://wa.me/'+NTA_WHATSAPP+'?text='+msg,'_blank');
+}
+
+function bookAnother() {
+  if (timerInterval) clearInterval(timerInterval);
+  S.slots=[]; S.court=null;
+  renderChip(); show('screen-booking'); initDate();
+}
+function logout() {
+  if (timerInterval) clearInterval(timerInterval);
+  S={mobile:'',user:null,nat:'np',ranked:'no',date:'',slots:[],court:null,ref:'',matchType:'singles'};
+  document.getElementById('mobile-input').value='';
+  document.getElementById('type-singles').className='toggle-btn selected';
+  document.getElementById('type-doubles').className='toggle-btn';
+  show('screen-login');
+}
+</script>
+</body>
+</html>
