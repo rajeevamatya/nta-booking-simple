@@ -40,6 +40,8 @@
   .topbar-logo .logo-mark i { font-size:17px; }
   .topbar-title { font-size:15px;font-weight:600;color:#fff; }
   .topbar-sub { font-size:11px;color:rgba(255,255,255,.5); }
+  .topbar-right { display:flex;align-items:center;gap:12px; }
+  .topbar-email { font-size:12px;color:rgba(255,255,255,.55); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .btn-logout { background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px; }
   .btn-logout:hover { background:rgba(255,255,255,.18); }
 
@@ -91,7 +93,7 @@
   .btn-cancel { background:#fef2f2;color:#dc2626;border-color:#fca5a5; }
   .btn-cancel:hover { background:#dc2626;color:#fff; }
   .btn-proof { background:#f0f9ff;color:#0369a1;border-color:#bae6fd; }
-  .btn-proof:hover { background:#e0f2fe; }
+  .btn-proof:hover { background:#0369a1;color:#fff; }
 
   .edit-input { border:1px solid var(--green-mid);border-radius:6px;padding:4px 8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:100%; }
   .edit-select { border:1px solid var(--green-mid);border-radius:6px;padding:4px 8px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:#fff; }
@@ -104,6 +106,28 @@
   .stat { background:var(--surface);border-radius:var(--radius);padding:.9rem 1.25rem;flex:1;min-width:130px;box-shadow:var(--shadow); }
   .stat-val { font-size:22px;font-weight:600;color:var(--green-dark); }
   .stat-lbl { font-size:12px;color:var(--text-muted);margin-top:2px; }
+
+  /* ── MODALS ── */
+  .modal-backdrop { display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:1rem; }
+  .modal-backdrop.open { display:flex; }
+  .modal-box { background:var(--surface);border-radius:var(--radius);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  .modal-head { display:flex;align-items:flex-start;justify-content:space-between;padding:1.25rem 1.25rem .75rem;border-bottom:1px solid var(--border); }
+  .modal-title { font-size:15px;font-weight:600; }
+  .modal-sub { font-size:12px;color:var(--text-muted);margin-top:2px; }
+  .modal-close { background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:2px;line-height:1;flex-shrink:0; }
+  .modal-close:hover { color:var(--text); }
+  .modal-body { padding:1.25rem; }
+  .modal-foot { padding:.75rem 1.25rem 1.25rem;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border); }
+  .proof-img { width:100%;border-radius:var(--radius-sm);display:block;margin-bottom:.75rem;cursor:zoom-in; }
+  .no-proof-msg { text-align:center;padding:2rem 1rem;color:var(--text-faint);font-size:13px; }
+  .proof-status { margin-bottom:.75rem; }
+
+  /* export option buttons */
+  .export-opt { display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-radius:var(--radius-sm);border:1px solid var(--border-mid);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);width:100%;margin-bottom:8px;text-align:left;transition:all .15s; }
+  .export-opt:hover { border-color:var(--green-mid);background:var(--green-light);color:var(--green-dark); }
+  .export-opt:last-child { margin-bottom:0; }
+  .export-opt-count { font-size:11px;color:var(--text-faint);font-weight:400; }
+  .export-opt:hover .export-opt-count { color:var(--green); }
 </style>
 </head>
 <body>
@@ -137,7 +161,10 @@
         <div class="topbar-sub">Nepal Tennis Association</div>
       </div>
     </div>
-    <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
+    <div class="topbar-right">
+      <span id="admin-email" class="topbar-email"></span>
+      <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
+    </div>
   </div>
 
   <div class="container">
@@ -171,8 +198,14 @@
           <option>Paid</option>
           <option>Cancelled</option>
         </select>
-        <input type="date" id="booking-date-filter" onchange="renderBookings()" style="min-width:150px">
-        <button class="btn-export" onclick="exportCSV('bookings')"><i class="ti ti-table-export"></i> Export CSV</button>
+        <select id="booking-date-filter" onchange="renderBookings()">
+          <option value="0">All time</option>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <button class="btn-export" onclick="showExportModal()"><i class="ti ti-table-export"></i> Export CSV</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -184,13 +217,57 @@
   </div>
 </div>
 
+<!-- ── PROOF MODAL ── -->
+<div class="modal-backdrop" id="proof-modal" onclick="if(event.target===this)closeProofModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="proof-modal-title"></div>
+        <div class="modal-sub" id="proof-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeProofModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="proof-status" id="proof-modal-status"></div>
+      <img class="proof-img" id="proof-modal-img" src="" alt="Payment proof" style="display:none" onclick="window.open(this.src,'_blank')">
+      <div class="no-proof-msg" id="proof-modal-no-proof" style="display:none">
+        <i class="ti ti-photo-off" style="font-size:32px;margin-bottom:.5rem;display:block"></i>
+        No payment proof uploaded yet.
+      </div>
+    </div>
+    <div class="modal-foot" id="proof-modal-foot">
+      <button class="action-btn btn-cancel-edit" onclick="closeProofModal()"><i class="ti ti-x"></i> Close</button>
+      <button class="action-btn btn-cancel" id="proof-modal-cancel-btn" onclick="updateBookingFromModal('Cancelled')" style="display:none"><i class="ti ti-ban"></i> Cancel booking</button>
+      <button class="action-btn btn-paid" id="proof-modal-pay-btn" onclick="updateBookingFromModal('Paid')" style="display:none"><i class="ti ti-check"></i> Mark as paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EXPORT MODAL ── -->
+<div class="modal-backdrop" id="export-modal" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Export Bookings</div>
+        <div class="modal-sub">Choose the date range to export</div>
+      </div>
+      <button class="modal-close" onclick="closeExportModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="export-modal-body">
+      <!-- filled dynamically -->
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://njthghjidutnrrkxlfkv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
 
 let accessToken = null;
+let userEmail = '';
 let allMembers = [];
 let allBookings = [];
+let proofModalBookingId = null;
 
 function sbHeaders(extra = {}) {
   return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...extra };
@@ -226,6 +303,8 @@ async function doLogin() {
       return;
     }
     accessToken = data.access_token;
+    userEmail = data.user?.email || email;
+    document.getElementById('admin-email').textContent = userEmail;
     err.style.display = 'none';
     allMembers = await sbGet('members?select=*&order=registered_at.desc');
     allBookings = await sbGet('bookings?select=*&order=created_at.desc');
@@ -249,7 +328,9 @@ async function doLogout() {
     }).catch(() => {});
   }
   accessToken = null;
+  userEmail = '';
   allMembers = []; allBookings = [];
+  document.getElementById('admin-email').textContent = '';
   document.getElementById('email-input').value = '';
   document.getElementById('pw-input').value = '';
   document.getElementById('login-err').style.display = 'none';
@@ -364,19 +445,40 @@ function renderBookingsStats() {
     <div class="stat"><div class="stat-val" style="color:#854d0e">${pending}</div><div class="stat-lbl">Pending payment</div></div>`;
 }
 
+function getDateCutoff(days) {
+  if (!days || days <= 0) return null;
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function renderBookings() {
   const q = (document.getElementById('booking-search')?.value || '').toLowerCase();
   const statusF = document.getElementById('booking-status-filter')?.value || '';
-  const dateF = document.getElementById('booking-date-filter')?.value || '';
+  const days = parseInt(document.getElementById('booking-date-filter')?.value || '0');
+  const cutoff = getDateCutoff(days);
   const filtered = allBookings.filter(b => {
     if (statusF && b.status !== statusF) return false;
-    if (dateF && b.date !== dateF) return false;
+    if (cutoff && (!b.created_at || new Date(b.created_at) < cutoff)) return false;
     if (q && !b.ref.toLowerCase().includes(q) && !b.name.toLowerCase().includes(q)) return false;
     return true;
   });
   const tbody = document.getElementById('bookings-tbody');
   if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">No bookings found.</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(b => `
+  tbody.innerHTML = filtered.map(b => {
+    const hasProof = !!b.proof_url;
+    const canPay = b.status === 'Payment Submitted';
+    const canCancel = b.status !== 'Cancelled' && b.status !== 'Paid';
+    // If there's a proof URL, actions go in the modal. Otherwise show inline.
+    let actions = '';
+    if (hasProof) {
+      actions = `<button class="action-btn btn-proof" onclick="openProofModal('${b.id}')"><i class="ti ti-photo"></i> View proof</button>`;
+    } else {
+      if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>`;
+      if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-ban"></i> Cancel</button>`;
+    }
+    return `
     <tr>
       <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
       <td>${esc(b.name)}<br><span style="font-size:11px;color:var(--text-muted)">${esc(b.phone)}</span></td>
@@ -386,12 +488,9 @@ function renderBookings() {
       <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
       <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
       <td>${statusBadge(b.status)}</td>
-      <td style="display:flex;gap:5px;flex-wrap:wrap">
-        ${b.proof_url ? `<a href="${b.proof_url}" target="_blank" class="action-btn btn-proof"><i class="ti ti-photo"></i> Proof</a>` : ''}
-        ${b.status === 'Payment Submitted' ? `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')"><i class="ti ti-check"></i> Mark paid</button>` : ''}
-        ${b.status !== 'Cancelled' && b.status !== 'Paid' ? `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')"><i class="ti ti-x"></i> Cancel</button>` : ''}
-      </td>
-    </tr>`).join('');
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">${actions}</div></td>
+    </tr>`;
+  }).join('');
 }
 
 async function updateBooking(id, status) {
@@ -401,28 +500,105 @@ async function updateBooking(id, status) {
   renderBookingsStats(); renderBookings();
 }
 
+// ── PROOF MODAL ───────────────────────────────────────────────────────────────
+
+function openProofModal(id) {
+  const b = allBookings.find(x => x.id === id);
+  if (!b) return;
+  proofModalBookingId = id;
+  document.getElementById('proof-modal-title').textContent = b.ref;
+  document.getElementById('proof-modal-sub').textContent =
+    `${b.name} · ${fmtDateShort(b.date)} · Rs. ${b.amount.toLocaleString()}`;
+  document.getElementById('proof-modal-status').innerHTML = statusBadge(b.status);
+  const img = document.getElementById('proof-modal-img');
+  const noProof = document.getElementById('proof-modal-no-proof');
+  if (b.proof_url) {
+    img.src = b.proof_url;
+    img.style.display = 'block';
+    noProof.style.display = 'none';
+  } else {
+    img.src = '';
+    img.style.display = 'none';
+    noProof.style.display = 'block';
+  }
+  const payBtn = document.getElementById('proof-modal-pay-btn');
+  const cancelBtn = document.getElementById('proof-modal-cancel-btn');
+  payBtn.style.display = b.status === 'Payment Submitted' ? 'inline-flex' : 'none';
+  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Paid') ? 'inline-flex' : 'none';
+  document.getElementById('proof-modal').classList.add('open');
+}
+
+function closeProofModal() {
+  document.getElementById('proof-modal').classList.remove('open');
+  proofModalBookingId = null;
+}
+
+async function updateBookingFromModal(status) {
+  if (!proofModalBookingId) return;
+  const id = proofModalBookingId;
+  closeProofModal();
+  await updateBooking(id, status);
+}
+
+// ── EXPORT MODAL ──────────────────────────────────────────────────────────────
+
+function showExportModal() {
+  const opts = [
+    { label: 'Last 7 days',  days: 7  },
+    { label: 'Last 14 days', days: 14 },
+    { label: 'Last 30 days', days: 30 },
+    { label: 'Last 90 days', days: 90 },
+    { label: 'Export all',   days: 0  },
+  ];
+  const body = document.getElementById('export-modal-body');
+  body.innerHTML = opts.map(o => {
+    const count = o.days > 0
+      ? allBookings.filter(b => b.created_at && new Date(b.created_at) >= getDateCutoff(o.days)).length
+      : allBookings.length;
+    return `<button class="export-opt" onclick="doExport(${o.days})">
+      <span>${o.label}</span>
+      <span class="export-opt-count">${count} booking${count !== 1 ? 's' : ''}</span>
+    </button>`;
+  }).join('');
+  document.getElementById('export-modal').classList.add('open');
+}
+
+function closeExportModal() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+
+function doExport(days) {
+  closeExportModal();
+  const cutoff = getDateCutoff(days);
+  const filtered = cutoff
+    ? allBookings.filter(b => b.created_at && new Date(b.created_at) >= cutoff)
+    : allBookings;
+  const csv = 'Ref,Name,Phone,Court,Date,Time,Match,Amount,Status,Created,ProofURL\n' +
+    filtered.map(b => [b.ref, b.name, b.phone, b.court, b.date, b.time_label, b.match_type,
+      b.amount, b.status, b.created_at||'', b.proof_url||''].map(csvCell).join(',')).join('\n');
+  const filename = days > 0 ? `bookings-last-${days}days.csv` : 'bookings-all.csv';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function statusBadge(s) {
   const map = { 'Pending Payment':'badge-pending', 'Payment Submitted':'badge-submitted', 'Paid':'badge-paid', 'Cancelled':'badge-cancelled' };
   return `<span class="badge ${map[s]||''}">${esc(s)}</span>`;
 }
 
-// ── CSV EXPORT ────────────────────────────────────────────────────────────────
+// ── CSV EXPORT (members) ──────────────────────────────────────────────────────
 
 function exportCSV(type) {
-  let csv, filename;
-  if (type === 'members') {
-    csv = 'Phone,Name,Nationality,Ranked,Verified,Registered\n' +
-      allMembers.map(m => [m.phone, m.name, m.nationality, m.is_ranked, m.is_verified, m.registered_at].map(csvCell).join(',')).join('\n');
-    filename = 'members.csv';
-  } else {
-    csv = 'Ref,Name,Phone,Court,Date,Time,Match,Amount,Status,ProofURL\n' +
-      allBookings.map(b => [b.ref, b.name, b.phone, b.court, b.date, b.time_label, b.match_type, b.amount, b.status, b.proof_url||''].map(csvCell).join(',')).join('\n');
-    filename = 'bookings.csv';
-  }
+  if (type !== 'members') return;
+  const csv = 'Phone,Name,Nationality,Ranked,Verified,Registered\n' +
+    allMembers.map(m => [m.phone, m.name, m.nationality, m.is_ranked, m.is_verified, m.registered_at].map(csvCell).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+  a.href = url; a.download = 'members.csv'; a.click();
   URL.revokeObjectURL(url);
 }
 
