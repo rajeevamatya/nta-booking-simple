@@ -225,8 +225,8 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Ref</th><th>Player</th><th>Court</th><th>Date</th><th>Time</th><th>Match</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="bookings-tbody"><tr><td colspan="9" class="loading"><i class="ti ti-loader-2 spin"></i> Loading…</td></tr></tbody>
+          <thead><tr><th>Ref</th><th>Player</th><th>Court</th><th>Date</th><th>Time</th><th>Match</th><th>Amount</th><th>Status</th><th>AI</th><th>Actions</th></tr></thead>
+          <tbody id="bookings-tbody"><tr><td colspan="10" class="loading"><i class="ti ti-loader-2 spin"></i> Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -636,7 +636,7 @@ function renderBookings() {
     return true;
   });
   const tbody = document.getElementById('bookings-tbody');
-  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">No bookings found.</td></tr>`; return; }
+  if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">No bookings found.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(b => {
     const hasProof = !!b.proof_url;
     const canPay = b.status === 'Payment Submitted';
@@ -656,6 +656,10 @@ function renderBookings() {
       <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
       <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
       <td>${statusBadge(b.status)}</td>
+      <td style="text-align:center">${b.ai_checked
+        ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:2px 7px"><i class="ti ti-robot" style="font-size:11px"></i>Checked</span>'
+        : '<span style="font-size:11px;color:var(--text-faint)">—</span>'
+      }</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap">${actions}</div></td>
     </tr>`;
   }).join('');
