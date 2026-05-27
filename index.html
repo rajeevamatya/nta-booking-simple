@@ -737,7 +737,9 @@
 <script>
 const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
 const NTA_WHATSAPP = '9779841044844';
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
+const SCRIPT_URL    = 'https://script.google.com/macros/s/AKfycbwhLbsc_n26cmI6zFx7LyixMEKafxH8HMpasyMthlsgYX2hq8SaNvQppk9p-m8iirW0/exec';
+const SUPABASE_URL  = 'https://njthghjidutnrrkxlfkv.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
 
 let S = { mobile:'', user:null, nat:'np', ranked:'no', date:'', slots:[], court:null, ref:'', matchType:'singles', bookings:[], paymentFile:null, paymentReady:null };
 let timerInterval = null;
@@ -1108,15 +1110,28 @@ async function submitPayment() {
   btn.disabled=true;
   btn.innerHTML='<i class="ti ti-loader-2 spin"></i> Uploading…';
   try {
-    // Always await compression before uploading
     const f = S.paymentReady ? await S.paymentReady : null;
     if (f) {
-      await fetch('/api/upload', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ action:'uploadPayment', ref:S.ref,
-          fileData:f.data, fileName:f.name, mimeType:f.type })
+      // Convert base64 to blob
+      const bytes = atob(f.data);
+      const ab = new ArrayBuffer(bytes.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+      const blob = new Blob([ab], { type: f.type });
+
+      // Upload directly to Supabase Storage (public bucket, no proxy needed)
+      const path = `${S.ref}/${f.name}`;
+      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': f.type },
+        body: blob,
       });
+
+      if (up.ok) {
+        // Tell Apps Script to mark booking as Payment Submitted + store proof URL
+        const proofUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}`;
+        await fetch(`${SCRIPT_URL}?action=updatePayment&ref=${encodeURIComponent(S.ref)}&proofUrl=${encodeURIComponent(proofUrl)}`);
+      }
     }
   } catch(e) { console.warn('Upload failed:',e); }
   btn.disabled=false;

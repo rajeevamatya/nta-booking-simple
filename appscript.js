@@ -11,7 +11,8 @@ function doGet(e) {
   if (p.action === 'lookup')      return lookupMember(p.phone);
   if (p.action === 'register')    return registerMember(p);
   if (p.action === 'book')        return createBooking(p);
-  if (p.action === 'getBookings') return getBookings(p.date);
+  if (p.action === 'getBookings')   return getBookings(p.date);
+  if (p.action === 'updatePayment') return updatePayment(p.ref, p.proofUrl);
   return respond({ error: 'Unknown action' });
 }
 
@@ -53,33 +54,15 @@ function getBookings(rawDate) {
   return respond({ bookings });
 }
 
-// ── POST: uploadPayment ───────────────────────────────────────────────────────
+// ── GET: updatePayment (called after Supabase Storage upload) ────────────────
 
-function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  if (data.action === 'uploadPayment') return uploadPayment(data);
-  return respond({ error: 'Unknown action' });
-}
-
-function uploadPayment(data) {
-  // Get or create the NTA Payment Proofs folder in Drive
-  const folderName = 'NTA Payment Proofs';
-  const folders = DriveApp.getFoldersByName(folderName);
-  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
-
-  // Decode base64 and save the file
-  const blob = Utilities.newBlob(
-    Utilities.base64Decode(data.fileData), data.mimeType, data.ref + '_' + data.fileName
-  );
-  const file = folder.createFile(blob);
-
-  // Update booking row: status → Payment Submitted, col 13 → Drive link
+function updatePayment(ref, proofUrl) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === data.ref) {
+    if (rows[i][0] === ref) {
       sheet.getRange(i + 1, 9).setValue('Payment Submitted');
-      sheet.getRange(i + 1, 13).setValue(file.getUrl());
+      sheet.getRange(i + 1, 13).setValue(proofUrl);
       break;
     }
   }
