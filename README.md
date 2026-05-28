@@ -77,7 +77,7 @@ time_label  TEXT        NOT NULL                   -- e.g. "7:00 AM – 9:00 AM"
 slots       INTEGER[]   NOT NULL                   -- e.g. {7,8}
 match_type  TEXT        NOT NULL CHECK ('singles'|'doubles')
 amount      INTEGER     NOT NULL
-status      TEXT        NOT NULL DEFAULT 'Awaiting Payment'
+status      TEXT        NOT NULL DEFAULT 'Awaiting Payment'  -- CHECK: Awaiting Payment | Pending Verification | Confirmed | Cancelled
 proof_url   TEXT
 ai_checked  BOOLEAN     NOT NULL DEFAULT false
 created_at  TIMESTAMPTZ NOT NULL DEFAULT now()

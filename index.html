@@ -1089,7 +1089,8 @@ async function confirmBooking() {
       headers: sbHeaders({'Prefer':'return=minimal'}),
       body: JSON.stringify({ ref:S.ref, phone:S.mobile, name:S.user.name,
         court:S.court, date:S.date, time_label:fmtRange(S.slots),
-        slots:S.slots, match_type:S.matchType, amount:getPrice() })
+        slots:S.slots, match_type:S.matchType, amount:getPrice(),
+        status:'Awaiting Payment' })
     });
     if (!r.ok) throw new Error('Server error '+r.status);
   } catch(e) {

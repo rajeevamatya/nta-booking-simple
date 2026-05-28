@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   slots       INTEGER[]   NOT NULL,          -- e.g. {7,8}
   match_type  TEXT        NOT NULL CHECK (match_type = ANY (ARRAY['singles', 'doubles'])),
   amount      INTEGER     NOT NULL,
-  status      TEXT        NOT NULL DEFAULT 'Pending Payment',
+  status      TEXT        NOT NULL DEFAULT 'Awaiting Payment',
   proof_url   TEXT,
   ai_checked  BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
