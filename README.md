@@ -34,7 +34,8 @@ nta/
     ├── 001_create_members.sql          # members table + RLS
     ├── 002_create_bookings.sql         # bookings table + RLS (includes ai_checked)
     ├── 003_create_settings.sql         # settings table + RLS + seed row
-    └── 004_add_ai_checked.sql          # adds ai_checked to existing bookings table
+    ├── 004_add_ai_checked.sql          # adds ai_checked to existing bookings table
+    └── 005_rename_statuses.sql         # renames statuses + adds CHECK constraint
 ```
 
 ### URL Routing (`vercel.json`)
@@ -359,6 +360,7 @@ vercel --prod
 If upgrading from an earlier version of this codebase:
 
 - [ ] Run `migrations/004_add_ai_checked.sql` to add the `ai_checked` column to the existing `bookings` table
+- [ ] Run `migrations/005_rename_statuses.sql` to rename booking statuses and add a CHECK constraint
 
 ---
 
