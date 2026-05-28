@@ -61,12 +61,13 @@ Run the files in `migrations/` in order in the **Supabase SQL Editor** (Dashboar
 #### `members`
 ```sql
 create table members (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  email       text not null unique,
-  phone       text,
-  verified    boolean default false,
-  created_at  timestamptz default now()
+  id            uuid        primary key default gen_random_uuid(),
+  phone         text        not null unique,
+  name          text        not null,
+  nationality   text,                        -- 'np' | 'intl'
+  is_ranked     boolean     default false,
+  is_verified   boolean     default false,
+  registered_at timestamptz default now()
 );
 
 alter table members enable row level security;
@@ -87,19 +88,19 @@ create policy "auth_all_members" on members
 #### `bookings`
 ```sql
 create table bookings (
-  id          uuid primary key default gen_random_uuid(),
-  ref         text not null unique,
-  name        text not null,
-  email       text not null,
-  phone       text,
-  date        date not null,
-  slot        text not null,
-  court       text not null,
-  type        text not null,         -- 'Singles' | 'Doubles'
-  price       int  not null,
-  status      text not null default 'Pending',
+  id          uuid        primary key default gen_random_uuid(),
+  ref         text        not null unique,
+  name        text        not null,
+  phone       text        not null,
+  court       text        not null,
+  date        date        not null,
+  time_label  text        not null,          -- e.g. "7:00 AM – 9:00 AM"
+  slots       int[]       not null,          -- e.g. {7,8}
+  match_type  text        not null,          -- 'singles' | 'doubles'
+  amount      int         not null,
+  status      text        not null default 'Pending',
   proof_url   text,
-  ai_checked  boolean not null default false,
+  ai_checked  boolean     not null default false,
   created_at  timestamptz default now()
 );
 
@@ -121,8 +122,6 @@ create policy "anon_update_bookings" on bookings
 create policy "auth_all_bookings" on bookings
   for all to authenticated using (true) with check (true);
 ```
-
-> If you already created the `bookings` table without `ai_checked`, run `add-ai-checked.sql` to add it.
 
 #### `settings`
 

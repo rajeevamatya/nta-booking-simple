@@ -3,11 +3,12 @@
 
 CREATE TABLE IF NOT EXISTS members (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone       TEXT        NOT NULL UNIQUE,
   name        TEXT        NOT NULL,
-  email       TEXT        NOT NULL UNIQUE,
-  phone       TEXT,
-  verified    BOOLEAN     DEFAULT FALSE,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  nationality TEXT,                          -- 'np' | 'intl'
+  is_ranked   BOOLEAN     DEFAULT FALSE,
+  is_verified BOOLEAN     DEFAULT FALSE,
+  registered_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE members ENABLE ROW LEVEL SECURITY;

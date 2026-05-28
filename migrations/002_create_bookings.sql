@@ -5,13 +5,13 @@ CREATE TABLE IF NOT EXISTS bookings (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   ref         TEXT        NOT NULL UNIQUE,
   name        TEXT        NOT NULL,
-  email       TEXT        NOT NULL,
-  phone       TEXT,
-  date        DATE        NOT NULL,
-  slot        TEXT        NOT NULL,
+  phone       TEXT        NOT NULL,
   court       TEXT        NOT NULL,
-  type        TEXT        NOT NULL,         -- 'Singles' | 'Doubles'
-  price       INT         NOT NULL,
+  date        DATE        NOT NULL,
+  time_label  TEXT        NOT NULL,          -- human-readable range e.g. "7:00 AM – 9:00 AM"
+  slots       INT[]       NOT NULL,          -- array of hour integers e.g. {7,8}
+  match_type  TEXT        NOT NULL,          -- 'singles' | 'doubles'
+  amount      INT         NOT NULL,
   status      TEXT        NOT NULL DEFAULT 'Pending',
   proof_url   TEXT,
   ai_checked  BOOLEAN     NOT NULL DEFAULT FALSE,
