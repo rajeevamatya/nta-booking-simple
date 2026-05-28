@@ -193,6 +193,7 @@
       <div id="members-stats" class="stat-row"></div>
       <div class="toolbar">
         <input type="text" id="member-search" placeholder="Search by name or phone…" oninput="renderMembers()">
+        <button class="action-btn btn-paid" onclick="openAddMemberModal()" style="margin-left:auto"><i class="ti ti-user-plus"></i> Add Member</button>
         <button class="btn-export" onclick="exportCSV('members')"><i class="ti ti-table-export"></i> Export CSV</button>
       </div>
       <div class="table-wrap">
@@ -221,6 +222,7 @@
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
         </select>
+        <button class="action-btn btn-paid" onclick="openAddBookingModal()"><i class="ti ti-calendar-plus"></i> Add Booking</button>
         <button class="btn-export" onclick="showExportModal()"><i class="ti ti-table-export"></i> Export CSV</button>
       </div>
       <div class="table-wrap">
@@ -372,6 +374,131 @@
   </div>
 </div>
 
+<!-- ── ADD MEMBER MODAL ── -->
+<div class="modal-backdrop" id="add-member-modal" onclick="if(event.target===this)closeAddMemberModal()">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Add Member</div>
+        <div class="modal-sub">Manually register a new member</div>
+      </div>
+      <button class="modal-close" onclick="closeAddMemberModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label class="settings-label">Phone <span style="color:#dc2626">*</span></label>
+        <input class="settings-input" id="am-phone" type="tel" placeholder="98XXXXXXXX">
+      </div>
+      <div>
+        <label class="settings-label">Name <span style="color:#dc2626">*</span></label>
+        <input class="settings-input" id="am-name" type="text" placeholder="Full name">
+      </div>
+      <div class="settings-grid2">
+        <div>
+          <label class="settings-label">Nationality</label>
+          <select class="settings-input" id="am-nationality">
+            <option value="np">Nepalese</option>
+            <option value="intl">Non-NP</option>
+          </select>
+        </div>
+        <div>
+          <label class="settings-label">Type</label>
+          <select class="settings-input" id="am-ranked">
+            <option value="false">Recreational</option>
+            <option value="true">Ranked</option>
+          </select>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="am-verified"> Mark as verified
+      </label>
+      <div id="am-error" style="font-size:12px;color:#dc2626;display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="action-btn btn-cancel-edit" onclick="closeAddMemberModal()">Cancel</button>
+      <button class="action-btn btn-paid" id="am-submit-btn" onclick="submitAddMember()"><i class="ti ti-check"></i> Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD BOOKING MODAL ── -->
+<div class="modal-backdrop" id="add-booking-modal" onclick="if(event.target===this)closeAddBookingModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Add Booking</div>
+        <div class="modal-sub">Manually create a booking (walk-in / phone)</div>
+      </div>
+      <button class="modal-close" onclick="closeAddBookingModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="settings-grid2">
+        <div>
+          <label class="settings-label">Player name <span style="color:#dc2626">*</span></label>
+          <input class="settings-input" id="ab-name" type="text" placeholder="Full name">
+        </div>
+        <div>
+          <label class="settings-label">Phone <span style="color:#dc2626">*</span></label>
+          <input class="settings-input" id="ab-phone" type="tel" placeholder="98XXXXXXXX">
+        </div>
+      </div>
+      <div class="settings-grid2">
+        <div>
+          <label class="settings-label">Date <span style="color:#dc2626">*</span></label>
+          <input class="settings-input" id="ab-date" type="date">
+        </div>
+        <div>
+          <label class="settings-label">Court <span style="color:#dc2626">*</span></label>
+          <select class="settings-input" id="ab-court">
+            <option value="1">Court 1</option><option value="2">Court 2</option>
+            <option value="3">Court 3</option><option value="4">Court 4</option>
+            <option value="5">Court 5</option><option value="6">Court 6</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-grid2">
+        <div>
+          <label class="settings-label">Start time <span style="color:#dc2626">*</span></label>
+          <select class="settings-input" id="ab-start"></select>
+        </div>
+        <div>
+          <label class="settings-label">Duration</label>
+          <select class="settings-input" id="ab-duration" onchange="abUpdateAmount()">
+            <option value="1">1 hour</option>
+            <option value="2">2 hours</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-grid2">
+        <div>
+          <label class="settings-label">Match type</label>
+          <select class="settings-input" id="ab-type" onchange="abUpdateAmount()">
+            <option value="singles">Singles</option>
+            <option value="doubles">Doubles</option>
+          </select>
+        </div>
+        <div>
+          <label class="settings-label">Amount (NPR)</label>
+          <input class="settings-input" id="ab-amount" type="number" min="0">
+        </div>
+      </div>
+      <div>
+        <label class="settings-label">Status</label>
+        <select class="settings-input" id="ab-status">
+          <option value="Pending Payment">Pending Payment</option>
+          <option value="Payment Submitted">Payment Submitted</option>
+          <option value="Paid">Paid</option>
+        </select>
+      </div>
+      <div id="ab-error" style="font-size:12px;color:#dc2626;display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="action-btn btn-cancel-edit" onclick="closeAddBookingModal()">Cancel</button>
+      <button class="action-btn btn-paid" id="ab-submit-btn" onclick="submitAddBooking()"><i class="ti ti-check"></i> Add Booking</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://njthghjidutnrrkxlfkv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
@@ -395,6 +522,14 @@ async function sbGet(path) {
 async function sbPatch(path, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method:'PATCH', headers: sbHeaders({'Prefer':'return=minimal'}), body: JSON.stringify(body) });
   if (r.status === 401) { handleExpired(); }
+}
+async function sbPost(path, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { method:'POST', headers: sbHeaders({'Prefer':'return=minimal'}), body: JSON.stringify(body) });
+  if (r.status === 401) { handleExpired(); return false; }
+  return r.ok;
+}
+function genRef() {
+  return 'NTA-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
 }
 
 function handleExpired() {
@@ -745,6 +880,107 @@ function showExportModal() {
 
 function closeExportModal() {
   document.getElementById('export-modal').classList.remove('open');
+}
+
+// ── ADD MEMBER ────────────────────────────────────────────────────────────────
+
+function openAddMemberModal() {
+  ['am-phone','am-name'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('am-nationality').value = 'np';
+  document.getElementById('am-ranked').value = 'false';
+  document.getElementById('am-verified').checked = false;
+  document.getElementById('am-error').style.display = 'none';
+  document.getElementById('add-member-modal').classList.add('open');
+  document.getElementById('am-phone').focus();
+}
+function closeAddMemberModal() {
+  document.getElementById('add-member-modal').classList.remove('open');
+}
+async function submitAddMember() {
+  const phone = document.getElementById('am-phone').value.trim();
+  const name  = document.getElementById('am-name').value.trim();
+  const err   = document.getElementById('am-error');
+  if (!phone || !name) { err.textContent = 'Phone and name are required.'; err.style.display='block'; return; }
+  const btn = document.getElementById('am-submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const ok = await sbPost('members', {
+    phone, name,
+    nationality: document.getElementById('am-nationality').value,
+    is_ranked:   document.getElementById('am-ranked').value === 'true',
+    is_verified: document.getElementById('am-verified').checked,
+  });
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Add Member';
+  if (ok) {
+    closeAddMemberModal();
+    allMembers = await sbGet('members?select=*&order=registered_at.desc');
+    renderMembers(); updateUnverifiedBadge();
+  } else {
+    err.textContent = 'Failed to save. Phone may already exist.'; err.style.display = 'block';
+  }
+}
+
+// ── ADD BOOKING ───────────────────────────────────────────────────────────────
+
+function openAddBookingModal() {
+  ['ab-name','ab-phone'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ab-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('ab-court').value = '1';
+  document.getElementById('ab-type').value = 'singles';
+  document.getElementById('ab-status').value = 'Pending Payment';
+  document.getElementById('ab-error').style.display = 'none';
+  // Populate start-time select from settings hours
+  const from = allSettings.open_from ?? 6;
+  const to   = allSettings.open_to   ?? 19;
+  const sel  = document.getElementById('ab-start');
+  sel.innerHTML = '';
+  for (let h = from; h < to; h++) {
+    const o = document.createElement('option'); o.value = h; o.textContent = fmtHour(h); sel.appendChild(o);
+  }
+  abUpdateAmount();
+  document.getElementById('add-booking-modal').classList.add('open');
+  document.getElementById('ab-name').focus();
+}
+function closeAddBookingModal() {
+  document.getElementById('add-booking-modal').classList.remove('open');
+}
+function abUpdateAmount() {
+  const type = document.getElementById('ab-type').value;
+  const price = type === 'singles' ? (allSettings.price_singles ?? 400) : (allSettings.price_doubles ?? 600);
+  const dur = parseInt(document.getElementById('ab-duration')?.value || '1');
+  document.getElementById('ab-amount').value = price * dur;
+}
+async function submitAddBooking() {
+  const name  = document.getElementById('ab-name').value.trim();
+  const phone = document.getElementById('ab-phone').value.trim();
+  const date  = document.getElementById('ab-date').value;
+  const err   = document.getElementById('ab-error');
+  if (!name || !phone || !date) { err.textContent = 'Name, phone and date are required.'; err.style.display='block'; return; }
+  const startH = parseInt(document.getElementById('ab-start').value);
+  const dur    = parseInt(document.getElementById('ab-duration').value);
+  const slots  = Array.from({length: dur}, (_, i) => startH + i);
+  const endH   = startH + dur;
+  const timeLabel = `${fmtHour(startH)} – ${fmtHour(endH)}`;
+  const btn = document.getElementById('ab-submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const ok = await sbPost('bookings', {
+    ref:        genRef(),
+    name, phone,
+    court:      parseInt(document.getElementById('ab-court').value),
+    date,
+    time_label: timeLabel,
+    slots,
+    match_type: document.getElementById('ab-type').value,
+    amount:     parseInt(document.getElementById('ab-amount').value),
+    status:     document.getElementById('ab-status').value,
+  });
+  btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Add Booking';
+  if (ok) {
+    closeAddBookingModal();
+    allBookings = await sbGet('bookings?select=*&order=created_at.desc');
+    renderBookingsStats(); renderBookings(); updatePendingBadge();
+  } else {
+    err.textContent = 'Failed to save. Please try again.'; err.style.display = 'block';
+  }
 }
 
 function doExport(days) {
