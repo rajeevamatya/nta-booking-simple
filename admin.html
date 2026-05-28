@@ -568,7 +568,7 @@ function startAutoRefresh() {
       const bookings = await sbGet('bookings?select=*&order=created_at.desc');
       if (Array.isArray(bookings)) {
         allBookings = bookings;
-        renderBookingsStats(); renderBookings(); updatePendingBadge();
+        renderBookings(); updatePendingBadge();
       }
     } catch(e) {}
   }, 60000);
@@ -609,7 +609,7 @@ async function doLogin() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers(); updateUnverifiedBadge();
-    renderBookingsStats(); renderBookings(); updatePendingBadge();
+    renderBookings(); updatePendingBadge();
     loadSettingsForm(allSettings);
     startAutoRefresh();
   } catch(e) {
@@ -782,6 +782,7 @@ function getFilteredBookings() {
 }
 
 function renderBookings() {
+  renderBookingsStats();
   const filtered = getFilteredBookings();
   const tbody = document.getElementById('bookings-tbody');
   if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">No bookings found.</td></tr>`; return; }
@@ -822,7 +823,7 @@ async function updateBooking(id, status) {
   await sbPatch(`bookings?id=eq.${id}`, { status });
   const b = allBookings.find(x => x.id === id);
   if (b) b.status = status;
-  renderBookingsStats(); renderBookings();
+  renderBookings();
 }
 
 // ── PROOF MODAL ───────────────────────────────────────────────────────────────
@@ -987,7 +988,7 @@ async function submitAddBooking() {
   if (ok) {
     closeAddBookingModal();
     allBookings = await sbGet('bookings?select=*&order=created_at.desc');
-    renderBookingsStats(); renderBookings(); updatePendingBadge();
+    renderBookings(); updatePendingBadge();
   } else {
     err.textContent = 'Failed to save. Please try again.'; err.style.display = 'block';
   }
@@ -1181,7 +1182,7 @@ async function init() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     renderMembersStats(); renderMembers(); updateUnverifiedBadge();
-    renderBookingsStats(); renderBookings(); updatePendingBadge();
+    renderBookings(); updatePendingBadge();
     loadSettingsForm(allSettings);
     startAutoRefresh();
   } catch(e) {
