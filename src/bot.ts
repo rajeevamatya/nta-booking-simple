@@ -210,7 +210,7 @@ async function saveHistory(phone: string, steps: StepLike[], userContent: string
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-function buildSystemPrompt(s: Settings): string {
+function buildSystemPrompt(s: Settings, memberName: string): string {
   const now = new Date().toLocaleString('en-US', {
     timeZone: 'Asia/Kathmandu',
     weekday: 'long',
@@ -224,6 +224,7 @@ function buildSystemPrompt(s: Settings): string {
 
   return `You are a friendly tennis court booking assistant for Nepal Tennis Association (NTA) on WhatsApp.
 Keep messages short and clear — this is a chat interface.
+The member you are talking to is: ${memberName}. Use their name when greeting them.
 
 Today: ${now} (Nepal time)
 Operating hours: ${s.open_from}:00–${s.open_to}:00 daily
@@ -254,7 +255,7 @@ export async function processMessage(
 
   const { data: member } = await getSupabase()
     .from('members')
-    .select('is_verified')
+    .select('name, is_verified')
     .eq('phone', phone)
     .maybeSingle();
 
@@ -264,6 +265,8 @@ export async function processMessage(
   if (!member.is_verified) {
     return 'Your membership is pending verification. Please contact NTA admin to verify your account before booking.';
   }
+
+  const memberName = member.name;
 
   const settings = await getSettings();
   const history = await getHistory(phone);
@@ -558,7 +561,7 @@ export async function processMessage(
 
   const result = await generateText({
     model: openai('gpt-4.1-mini'),
-    system: buildSystemPrompt(settings),
+    system: buildSystemPrompt(settings, memberName),
     messages: [
       ...history,
       { role: 'user' as const, content: userContent },
