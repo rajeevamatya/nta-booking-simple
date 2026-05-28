@@ -1,7 +1,22 @@
 import { generateText, tool, type CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 import { z } from 'zod';
+
+// ── Phone normalisation ───────────────────────────────────────────────────────
+
+function normalizePhone(raw: string): string {
+  const s = raw.replace('whatsapp:', '');
+  try {
+    if (isValidPhoneNumber(s)) return parsePhoneNumber(s).number;
+    // Local number without country code — try Nepal as default
+    if (isValidPhoneNumber(s, 'NP')) return parsePhoneNumber(s, 'NP').number;
+  } catch {
+    // fall through
+  }
+  return s;
+}
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 
@@ -251,22 +266,13 @@ export async function processMessage(
   from: string,
   mediaUrl: string | null,
 ): Promise<string> {
-  const phone = from.replace('whatsapp:', '');
+  const phone = normalizePhone(from);
 
-  let { data: member } = await getSupabase()
+  const { data: member } = await getSupabase()
     .from('members')
     .select('name, is_verified')
     .eq('phone', phone)
     .maybeSingle();
-
-  // Fallback: member registered with local format (e.g. 9841234567) but Twilio sends +9779841234567
-  if (!member && phone.startsWith('+977')) {
-    ({ data: member } = await getSupabase()
-      .from('members')
-      .select('name, is_verified')
-      .eq('phone', phone.slice(4))
-      .maybeSingle());
-  }
 
   if (!member) {
     return 'You are not registered with NTA. Please register through the NTA website or contact the admin to get started.';

@@ -158,6 +158,16 @@
   }
   input[type=date]::-webkit-date-and-time-value { text-align: left; }
   .field-group { margin-bottom: 1rem; }
+  .phone-row { display: flex; gap: 8px; }
+  .phone-row select {
+    flex: 0 0 auto; min-width: 105px;
+    border: 1px solid var(--border-mid); border-radius: var(--radius-sm);
+    padding: 11px 8px; font-size: 15px; font-family: 'DM Sans', sans-serif;
+    color: var(--text); background: var(--surface); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s; cursor: pointer;
+  }
+  .phone-row select:focus { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(47,168,118,0.12); }
+  .phone-row input { flex: 1; }
 
   /* ── BUTTONS ── */
   .btn-primary {
@@ -480,7 +490,21 @@
       <div class="card">
         <div class="field-group">
           <label class="field-label" for="mobile-input">Your mobile number</label>
-          <input type="tel" id="mobile-input" placeholder="98XXXXXXXX" maxlength="20" onkeydown="if(event.key==='Enter')checkMobile()">
+          <div class="phone-row">
+            <select id="country-code">
+              <option value="+977" selected>🇳🇵 +977</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+91">🇮🇳 +91</option>
+              <option value="+61">🇦🇺 +61</option>
+              <option value="+81">🇯🇵 +81</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+86">🇨🇳 +86</option>
+              <option value="+82">🇰🇷 +82</option>
+            </select>
+            <input type="tel" id="mobile-input" placeholder="98XXXXXXXX" maxlength="15" onkeydown="if(event.key==='Enter')checkMobile()">
+          </div>
           <p class="err" id="mobile-err">Please enter a valid phone number.</p>
         </div>
         <button class="btn-primary" onclick="checkMobile()">
@@ -803,6 +827,14 @@ let CONFIG = {
 function sbHeaders(extra = {}) {
   return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', ...extra };
 }
+function normalizePhone(v) {
+  if (!v) return v;
+  if (v.startsWith('+')) return v;
+  const d = v.replace(/\D/g, '');
+  if (d.length === 10 && d.startsWith('9')) return '+977' + d;
+  if (d.length === 13 && d.startsWith('977')) return '+' + d;
+  return v;
+}
 async function sbGet(path) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: sbHeaders() });
   return r.json();
@@ -843,14 +875,16 @@ function genRef() {
 async function checkMobile() {
   const v = document.getElementById('mobile-input').value.trim();
   const err = document.getElementById('mobile-err');
-  if (!/^\+?\d{7,15}$/.test(v)) { err.style.display='block'; return; }
+  const digits = v.replace(/\D/g, '');
+  if (!digits || digits.length < 6) { err.style.display='block'; return; }
   err.style.display='none';
-  S.mobile = v;
+  const cc = document.getElementById('country-code').value;
+  S.mobile = cc + digits;
   const btn = document.querySelector('#screen-login .btn-primary');
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Checking…';
   try {
-    const data = await sbGet(`members?phone=eq.${encodeURIComponent(v)}&select=*`);
+    const data = await sbGet(`members?phone=eq.${encodeURIComponent(S.mobile)}&select=*`);
     if (data && data.length > 0) {
       const m = data[0];
       S.user = { name: m.name, nat: m.nationality, ranked: m.is_ranked, verified: m.is_verified };
