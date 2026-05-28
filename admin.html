@@ -206,7 +206,7 @@
     <div id="tab-bookings">
       <div id="bookings-stats" class="stat-row"></div>
       <div class="toolbar">
-        <input type="text" id="booking-search" placeholder="Search by ref or name…" oninput="renderBookings()">
+        <input type="text" id="booking-search" placeholder="Search by ref, name or phone…" oninput="renderBookings()">
         <select id="booking-status-filter" onchange="renderBookings()">
           <option value="">All statuses</option>
           <option>Pending Payment</option>
@@ -638,7 +638,7 @@ function renderBookings() {
     if (dateF === 'yesterday' && b.date !== yesterdayStr) return false;
     if (dateF === '7'  && b.date < cutoffStr(7))  return false;
     if (dateF === '30' && b.date < cutoffStr(30)) return false;
-    if (q && !b.ref.toLowerCase().includes(q) && !b.name.toLowerCase().includes(q)) return false;
+    if (q && !b.ref.toLowerCase().includes(q) && !b.name.toLowerCase().includes(q) && !(b.phone||'').includes(q)) return false;
     return true;
   });
   const tbody = document.getElementById('bookings-tbody');
