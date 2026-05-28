@@ -331,6 +331,51 @@ Only the `anon` key is used in this project. It is embedded in the HTML intentio
 
 ---
 
+## Code Restructuring Plan
+
+The codebase currently embeds all CSS and JS inline in `index.html` and `admin.html`. The plan is to split it into separate files without introducing a build step or framework.
+
+### Target Structure
+
+```
+nta/
+├── index.html      ← markup only, loads styles.css + shared.js + app.js
+├── admin.html      ← markup only, loads styles.css + shared.js + admin.js
+├── styles.css      ← all CSS (deduplicated :root variables + shared components)
+├── shared.js       ← Supabase client, formatting utils, compressImage
+├── app.js          ← all booking app logic
+├── admin.js        ← all admin panel logic
+├── favicon.svg
+├── vercel.json
+└── migrations/
+```
+
+### Steps
+
+1. **Extract `styles.css`** — pull all CSS from both `<style>` blocks into one file, deduplicate shared rules (`:root`, `.badge`, `.btn-*`, `.card`, etc.), remove `<style>` tags from both HTML files.
+
+2. **Extract `shared.js`** — move the following into `shared.js`, consolidating duplicates:
+   - `SUPABASE_URL`, `SUPABASE_KEY`
+   - `sbGet`, `sbPost`, `sbPatch`
+   - `genRef`, `fmt12`, `fmtRange`, `fmtDate`
+   - `compressImage` (currently copy-pasted 3× across both files)
+
+3. **Extract `app.js`** — move the remaining `<script>` block from `index.html` into `app.js`, removing anything now covered by `shared.js`.
+
+4. **Extract `admin.js`** — same for `admin.html` → `admin.js`.
+
+5. **Wire up both HTML files** — replace inline `<style>` and `<script>` blocks with:
+   ```html
+   <link rel="stylesheet" href="/styles.css">
+   <script src="/shared.js"></script>
+   <script src="/app.js"></script>   <!-- or admin.js -->
+   ```
+   Smoke test the full booking flow and admin login after wiring up.
+
+No build step, no npm, no framework — deploys identically to today.
+
+---
+
 ## Planned Improvements
 
 ### AI Payment Proof Verification
