@@ -61,13 +61,13 @@ Run the files in `migrations/` in order in the **Supabase SQL Editor** (Dashboar
 #### `members`
 ```sql
 create table members (
-  id            uuid        primary key default gen_random_uuid(),
-  phone         text        not null unique,
+  phone         text        not null,
   name          text        not null,
-  nationality   text,                        -- 'np' | 'intl'
-  is_ranked     boolean     default false,
-  is_verified   boolean     default false,
-  registered_at timestamptz default now()
+  nationality   text        not null default 'np',   -- 'np' | 'intl'
+  is_ranked     boolean     not null default false,
+  is_verified   boolean     not null default false,
+  registered_at timestamptz not null default now(),
+  constraint members_pkey primary key (phone)
 );
 
 alter table members enable row level security;
@@ -88,20 +88,21 @@ create policy "auth_all_members" on members
 #### `bookings`
 ```sql
 create table bookings (
-  id          uuid        primary key default gen_random_uuid(),
+  id          uuid        not null default gen_random_uuid(),
   ref         text        not null unique,
-  name        text        not null,
   phone       text        not null,
-  court       text        not null,
+  name        text        not null,
+  court       integer     not null check (court >= 1 and court <= 6),
   date        date        not null,
   time_label  text        not null,          -- e.g. "7:00 AM – 9:00 AM"
-  slots       int[]       not null,          -- e.g. {7,8}
-  match_type  text        not null,          -- 'singles' | 'doubles'
-  amount      int         not null,
-  status      text        not null default 'Pending',
+  slots       integer[]   not null,          -- e.g. {7,8}
+  match_type  text        not null check (match_type = any (array['singles','doubles'])),
+  amount      integer     not null,
+  status      text        not null default 'Pending Payment',
   proof_url   text,
   ai_checked  boolean     not null default false,
-  created_at  timestamptz default now()
+  created_at  timestamptz not null default now(),
+  constraint bookings_pkey primary key (id)
 );
 
 alter table bookings enable row level security;

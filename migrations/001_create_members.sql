@@ -2,13 +2,13 @@
 -- Safe to re-run — uses IF NOT EXISTS
 
 CREATE TABLE IF NOT EXISTS members (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone       TEXT        NOT NULL UNIQUE,
-  name        TEXT        NOT NULL,
-  nationality TEXT,                          -- 'np' | 'intl'
-  is_ranked   BOOLEAN     DEFAULT FALSE,
-  is_verified BOOLEAN     DEFAULT FALSE,
-  registered_at TIMESTAMPTZ DEFAULT now()
+  phone         TEXT        NOT NULL,
+  name          TEXT        NOT NULL,
+  nationality   TEXT        NOT NULL DEFAULT 'np',   -- 'np' | 'intl'
+  is_ranked     BOOLEAN     NOT NULL DEFAULT FALSE,
+  is_verified   BOOLEAN     NOT NULL DEFAULT FALSE,
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT members_pkey PRIMARY KEY (phone)
 );
 
 ALTER TABLE members ENABLE ROW LEVEL SECURITY;

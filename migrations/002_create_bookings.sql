@@ -2,20 +2,21 @@
 -- Safe to re-run — uses IF NOT EXISTS
 
 CREATE TABLE IF NOT EXISTS bookings (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          UUID        NOT NULL DEFAULT gen_random_uuid(),
   ref         TEXT        NOT NULL UNIQUE,
-  name        TEXT        NOT NULL,
   phone       TEXT        NOT NULL,
-  court       TEXT        NOT NULL,
+  name        TEXT        NOT NULL,
+  court       INTEGER     NOT NULL CHECK (court >= 1 AND court <= 6),
   date        DATE        NOT NULL,
-  time_label  TEXT        NOT NULL,          -- human-readable range e.g. "7:00 AM – 9:00 AM"
-  slots       INT[]       NOT NULL,          -- array of hour integers e.g. {7,8}
-  match_type  TEXT        NOT NULL,          -- 'singles' | 'doubles'
-  amount      INT         NOT NULL,
-  status      TEXT        NOT NULL DEFAULT 'Pending',
+  time_label  TEXT        NOT NULL,          -- e.g. "7:00 AM – 9:00 AM"
+  slots       INTEGER[]   NOT NULL,          -- e.g. {7,8}
+  match_type  TEXT        NOT NULL CHECK (match_type = ANY (ARRAY['singles', 'doubles'])),
+  amount      INTEGER     NOT NULL,
+  status      TEXT        NOT NULL DEFAULT 'Pending Payment',
   proof_url   TEXT,
   ai_checked  BOOLEAN     NOT NULL DEFAULT FALSE,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT bookings_pkey PRIMARY KEY (id)
 );
 
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
