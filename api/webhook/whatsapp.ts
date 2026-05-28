@@ -32,7 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const reply = await processMessage(text, from, mediaUrl);
     res.send(twiml(reply));
   } catch (err) {
-    console.error('Webhook error:', err);
-    res.send(twiml('Sorry, something went wrong. Please try again.'));
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Webhook error:', msg);
+    res.send(twiml(`Error: ${msg}`));
   }
 }

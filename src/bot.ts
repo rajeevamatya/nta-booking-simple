@@ -1,14 +1,20 @@
 import { generateText, tool, type CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+// Lazy so missing env vars throw inside the request handler (catchable) not at module load
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    if (!process.env.SUPABASE_URL) throw new Error('SUPABASE_URL env var is not set');
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY env var is not set');
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 // ── Settings (cached 5 min) ───────────────────────────────────────────────────
 
@@ -26,7 +32,7 @@ let _settingsAt = 0;
 
 async function getSettings(): Promise<Settings> {
   if (_settings && Date.now() - _settingsAt < 300_000) return _settings;
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from('settings')
     .select('open_from, open_to, price_singles, price_doubles, whatsapp, qr_url')
     .eq('id', 1)
@@ -61,7 +67,7 @@ function formatTimeLabel(time: string, durationHours: number): string {
 }
 
 async function upsertMember(phone: string, name?: string): Promise<void> {
-  await supabase
+  await getSupabase()
     .from('members')
     .upsert({ phone, name: name ?? phone }, { onConflict: 'phone', ignoreDuplicates: true });
 }
@@ -106,7 +112,7 @@ function sanitizeHistory(msgs: CoreMessage[]): CoreMessage[] {
 }
 
 async function getHistory(phone: string, limit = 10): Promise<CoreMessage[]> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from('conversation_history')
     .select('role, content, metadata')
     .eq('phone', phone)
@@ -199,7 +205,7 @@ async function saveHistory(phone: string, steps: StepLike[], userContent: string
     }
   }
 
-  await supabase.from('conversation_history').insert(rows);
+  await getSupabase().from('conversation_history').insert(rows);
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -276,7 +282,7 @@ export async function processMessage(
       const slots = timeToSlots(time, durationHours);
       const price = (numPeople >= 4 ? s.price_doubles : s.price_singles) * durationHours;
 
-      const { data: booked } = await supabase
+      const { data: booked } = await getSupabase()
         .from('bookings')
         .select('court')
         .eq('date', date)
@@ -303,7 +309,7 @@ export async function processMessage(
 
         const altDate = alt.toISOString().slice(0, 10);
         const altTime = `${String(ah).padStart(2, '0')}:00`;
-        const { data: altBooked } = await supabase
+        const { data: altBooked } = await getSupabase()
           .from('bookings')
           .select('court')
           .eq('date', altDate)
@@ -339,13 +345,13 @@ export async function processMessage(
       const matchType = numPeople >= 4 ? 'doubles' : 'singles';
       const amount = (numPeople >= 4 ? s.price_doubles : s.price_singles) * durationHours;
 
-      const { data: member } = await supabase
+      const { data: member } = await getSupabase()
         .from('members')
         .select('name')
         .eq('phone', phone)
         .single();
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('bookings')
         .insert({
           ref,
@@ -381,7 +387,7 @@ export async function processMessage(
     parameters: z.object({}),
     execute: async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
+      const { data } = await getSupabase()
         .from('bookings')
         .select('ref, court, date, time_label, match_type, amount, status')
         .eq('phone', phone)
@@ -398,7 +404,7 @@ export async function processMessage(
       ref: z.string().describe('Booking ref, e.g. NTA-A1B2-C3D'),
     }),
     execute: async ({ ref }) => {
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('bookings')
         .update({ status: 'Cancelled' })
         .eq('ref', ref)
@@ -413,7 +419,7 @@ export async function processMessage(
       ref: z.string().describe('Booking ref, e.g. NTA-A1B2-C3D'),
     }),
     execute: async ({ ref }) => {
-      const { data } = await supabase
+      const { data } = await getSupabase()
         .from('bookings')
         .select('ref, court, date, time_label, match_type, amount, status, ai_checked')
         .eq('ref', ref)
@@ -446,7 +452,7 @@ export async function processMessage(
       let bookingId: string;
 
       if (bookingRef) {
-        const { data } = await supabase
+        const { data } = await getSupabase()
           .from('bookings')
           .select('id, amount')
           .eq('ref', bookingRef)
@@ -456,7 +462,7 @@ export async function processMessage(
         bookingId = data.id as string;
         expectedAmount = data.amount as number;
       } else {
-        const { data } = await supabase
+        const { data } = await getSupabase()
           .from('bookings')
           .select('id, ref, amount')
           .eq('phone', phone)
@@ -483,14 +489,14 @@ export async function processMessage(
 
       // Upload to Supabase Storage so admin can view it in admin.html
       const fileName = `${bookingId}-${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
+      const { error: uploadErr } = await getSupabase().storage
         .from('payment-proofs')
         .upload(fileName, imgBuffer, { contentType: mimeType, upsert: true });
       if (uploadErr) return { error: 'Failed to store payment proof.' };
 
       const {
         data: { publicUrl },
-      } = supabase.storage.from('payment-proofs').getPublicUrl(fileName);
+      } = getSupabase().storage.from('payment-proofs').getPublicUrl(fileName);
 
       // Use vision to extract payment info for ai_checked flag
       const { text: raw } = await generateText({
@@ -523,7 +529,7 @@ export async function processMessage(
       const amountOk =
         extracted.amount !== null && Math.abs(extracted.amount - expectedAmount) <= 10;
 
-      await supabase
+      await getSupabase()
         .from('bookings')
         .update({ proof_url: publicUrl, ai_checked: amountOk, status: 'Pending Verification' })
         .eq('id', bookingId);
