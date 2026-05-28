@@ -838,10 +838,7 @@ function renderBookings() {
       <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
       <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
       <td><span style="white-space:nowrap">${statusBadge(b.status)}${overdueTag}${proofIcon}</span></td>
-      <td style="text-align:center">${b.ai_checked
-        ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:2px 7px"><i class="ti ti-robot" style="font-size:11px"></i>Checked</span>'
-        : '<span style="font-size:11px;color:var(--text-faint)">—</span>'
-      }</td>
+      <td style="text-align:center">${aiCheckCell(b)}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap">${actions}</div></td>
     </tr>`;
   }).join('');
@@ -944,6 +941,17 @@ async function adminUploadAndConfirm() {
     if (local) { local.status = 'Confirmed'; local.proof_url = proofUrl; }
     closeProofModal();
     renderBookings(); updatePendingBadge();
+    // Run AI check in background — updates ai_check_details for admin view
+    fetch('/api/check-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: id }),
+    }).then(r => r.ok ? r.json() : null).then(result => {
+      if (!result) return;
+      const b = allBookings.find(x => x.id === id);
+      if (b) { b.ai_checked = result.aiChecked; b.ai_check_details = result.aiCheckDetails; }
+      renderBookings();
+    }).catch(() => {});
   } catch(e) {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-upload"></i> Upload &amp; confirm';
@@ -1092,6 +1100,31 @@ function doExport(days) {
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+function aiCheckCell(b) {
+  const d = b.ai_check_details;
+  if (!d) {
+    return b.ai_checked
+      ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:2px 7px"><i class="ti ti-robot" style="font-size:11px"></i>Checked</span>'
+      : '<span style="font-size:11px;color:var(--text-faint)">—</span>';
+  }
+  const dot = (ok, label, title) =>
+    `<span title="${esc(title)}" style="display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;cursor:default;${ok ? 'color:#16a34a;background:#dcfce7' : 'color:#b91c1c;background:#fee2e2'}">${ok ? '✓' : '✗'} ${label}</span>`;
+  const softDot = (ok, label, title) =>
+    `<span title="${esc(title)}" style="display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;cursor:default;${ok ? 'color:#16a34a;background:#dcfce7' : 'color:#92400e;background:#fef3c7'}">${ok ? '✓' : '~'} ${label}</span>`;
+
+  const amtTitle = `Amount: extracted Rs.${d.amount?.extracted ?? '?'}, expected Rs.${d.amount?.expected ?? '?'}`;
+  const dateTitle = `Date: receipt ${d.date?.extracted ?? '?'}, booking created ${d.date?.bookingCreated ?? '?'}`;
+  const recvTitle = `Receiver: "${d.receiver?.extracted ?? '?'}"`;
+  const sendTitle = `Sender: extracted ${d.sender?.extracted ?? '?'}, member ${d.sender?.member ?? '?'}`;
+
+  return `<div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center">
+    ${dot(d.amount?.ok, 'Amt', amtTitle)}
+    ${dot(d.date?.ok, 'Date', dateTitle)}
+    ${softDot(d.receiver?.ok, 'Recv', recvTitle)}
+    ${softDot(d.sender?.ok, 'Sndr', sendTitle)}
+  </div>`;
 }
 
 function statusBadge(s) {

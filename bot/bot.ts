@@ -3,6 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 import { z } from 'zod';
+import { runPaymentCheck } from '../lib/checkPayment';
 
 // ── Phone normalisation ───────────────────────────────────────────────────────
 
@@ -480,21 +481,23 @@ export async function processMessage(
       let bookingRef = ref;
       let expectedAmount: number;
       let bookingId: string;
+      let bookingCreatedAt: string;
 
       if (bookingRef) {
         const { data } = await getSupabase()
           .from('bookings')
-          .select('id, amount')
+          .select('id, amount, created_at')
           .eq('ref', bookingRef)
           .eq('phone', phone)
           .single();
         if (!data) return { error: `Booking ${bookingRef} not found.` };
         bookingId = data.id as string;
         expectedAmount = data.amount as number;
+        bookingCreatedAt = (data.created_at as string).slice(0, 10);
       } else {
         const { data } = await getSupabase()
           .from('bookings')
-          .select('id, ref, amount')
+          .select('id, ref, amount, created_at')
           .eq('phone', phone)
           .eq('status', 'Awaiting Payment')
           .order('created_at', { ascending: false })
@@ -504,6 +507,7 @@ export async function processMessage(
         bookingRef = data.ref as string;
         bookingId = data.id as string;
         expectedAmount = data.amount as number;
+        bookingCreatedAt = (data.created_at as string).slice(0, 10);
       }
 
       // Download image from Twilio (requires Basic auth)
@@ -528,47 +532,26 @@ export async function processMessage(
         data: { publicUrl },
       } = getSupabase().storage.from('payment-proofs').getPublicUrl(fileName);
 
-      // Use vision to extract payment info for ai_checked flag
-      const { text: raw } = await generateText({
-        model: openai('gpt-4.1-mini'),
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract payment info from this receipt. Return JSON only:\n{"amount":number|null,"transactionId":"string"|null,"paymentMethod":"esewa"|"fonepay"|"khalti"|"bank"|"unknown"}',
-              },
-              { type: 'image', image: imgBuffer, mimeType },
-            ],
-          },
-        ],
-      });
-
-      let extracted: { amount: number | null; paymentMethod: string } = {
-        amount: null,
-        paymentMethod: 'unknown',
-      };
-      try {
-        const json = raw.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
-        extracted = JSON.parse(json);
-      } catch {
-        // continue with defaults
-      }
-
-      const amountOk =
-        extracted.amount !== null && Math.abs(extracted.amount - expectedAmount) <= 10;
+      const { aiChecked, aiCheckDetails, paymentMethod, detectedAmount } =
+        await runPaymentCheck(imgBuffer, mimeType, expectedAmount, bookingCreatedAt, phone);
 
       await getSupabase()
         .from('bookings')
-        .update({ proof_url: publicUrl, ai_checked: amountOk, status: 'Pending Verification' })
+        .update({
+          proof_url: publicUrl,
+          ai_checked: aiChecked,
+          ai_check_details: aiCheckDetails,
+          status: 'Pending Verification',
+        })
         .eq('id', bookingId);
 
       return {
         ref: bookingRef,
         expectedAmount,
-        detectedAmount: extracted.amount,
-        paymentMethod: extracted.paymentMethod,
+        detectedAmount,
+        paymentMethod,
+        aiChecked,
+        checks: aiCheckDetails,
         status: 'Pending Verification',
       };
     },

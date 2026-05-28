@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { processMessage } from '../../src/bot';
+import { processMessage } from '../../bot/bot';
 
 function escapeXml(str: string): string {
   return str
