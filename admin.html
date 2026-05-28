@@ -348,11 +348,29 @@
         <i class="ti ti-photo-off" style="font-size:32px;margin-bottom:.5rem;display:block"></i>
         No payment proof uploaded yet.
       </div>
+      <!-- Admin upload section — shown for Awaiting Payment bookings -->
+      <div id="proof-modal-upload-section" style="display:none;margin-top:.75rem">
+        <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em">
+          <i class="ti ti-upload" style="vertical-align:-2px;margin-right:4px"></i>Upload proof on behalf of member
+        </div>
+        <div id="proof-modal-upload-area" onclick="document.getElementById('proof-modal-file-input').click()"
+          style="border:2px dashed var(--border-mid);border-radius:var(--radius-sm);padding:14px;text-align:center;cursor:pointer;background:var(--surface2);transition:border-color .15s"
+          onmouseover="this.style.borderColor='var(--green-mid)'" onmouseout="this.style.borderColor='var(--border-mid)'">
+          <i class="ti ti-photo-up" id="proof-modal-upload-icon" style="font-size:22px;color:var(--text-faint);display:block;margin-bottom:4px"></i>
+          <div id="proof-modal-upload-text" style="font-size:13px;color:var(--text-muted)"><strong>Click to select</strong> payment screenshot</div>
+          <div id="proof-modal-upload-filename" style="font-size:11px;color:var(--text-faint);margin-top:3px"></div>
+        </div>
+        <input type="file" id="proof-modal-file-input" accept="image/*" style="display:none" onchange="handleAdminProofSelect(this)">
+        <p id="proof-modal-upload-err" style="display:none;font-size:12px;color:#dc2626;margin-top:5px;text-align:center">
+          <i class="ti ti-alert-circle" style="vertical-align:-2px"></i> Upload failed — please try again.
+        </p>
+      </div>
     </div>
     <div class="modal-foot" id="proof-modal-foot">
       <button class="action-btn btn-cancel-edit" onclick="closeProofModal()"><i class="ti ti-x"></i> Close</button>
       <button class="action-btn btn-cancel" id="proof-modal-cancel-btn" onclick="updateBookingFromModal('Cancelled')" style="display:none"><i class="ti ti-ban"></i> Cancel booking</button>
       <button class="action-btn btn-unverify" id="proof-modal-unpay-btn" onclick="updateBookingFromModal('Pending Verification')" style="display:none"><i class="ti ti-arrow-back-up"></i> Undo confirm</button>
+      <button class="action-btn btn-paid" id="proof-modal-upload-confirm-btn" onclick="adminUploadAndConfirm()" style="display:none"><i class="ti ti-upload"></i> Upload &amp; confirm</button>
       <button class="action-btn btn-paid" id="proof-modal-pay-btn" onclick="updateBookingFromModal('Confirmed')" style="display:none"><i class="ti ti-check"></i> Confirm payment</button>
     </div>
   </div>
@@ -508,6 +526,7 @@ let userEmail = '';
 let allMembers = [];
 let allBookings = [];
 let proofModalBookingId = null;
+let adminProofFile = null;
 
 let refreshInterval = null;
 
@@ -789,15 +808,16 @@ function renderBookings() {
   const now = Date.now();
   tbody.innerHTML = filtered.map(b => {
     const hasProof = !!b.proof_url;
-    const canConfirm = b.status === 'Pending Verification';
+    const canConfirm = b.status === 'Pending Verification' || b.status === 'Awaiting Payment';
     const canCancel  = b.status !== 'Cancelled' && b.status !== 'Confirmed';
     const isOverdue  = b.status === 'Awaiting Payment' && b.created_at && (now - new Date(b.created_at).getTime()) > 10 * 60 * 1000;
     let actions = '';
     if (canConfirm) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Confirmed')" style="padding:4px 9px;font-size:11px">Confirm</button>`;
     if (b.status === 'Confirmed') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Pending Verification')" style="padding:4px 9px;font-size:11px">Undo</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')" style="padding:4px 9px;font-size:11px">Cancel</button>`;
-    const proofIcon = hasProof
-      ? `<button onclick="openProofModal('${b.id}')" title="View proof" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-photo" style="font-size:13px"></i></button>`
+    const showModalIcon = hasProof || b.status === 'Awaiting Payment';
+    const proofIcon = showModalIcon
+      ? `<button onclick="openProofModal('${b.id}')" title="${hasProof ? 'View proof' : 'Upload proof'}" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-${hasProof ? 'photo' : 'upload'}" style="font-size:13px"></i></button>`
       : '';
     const overdueTag = isOverdue ? `<span style="margin-left:5px;font-size:10px;font-weight:600;color:#c2410c;background:#ffedd5;border-radius:4px;padding:1px 5px;vertical-align:middle">Overdue</span>` : '';
     return `
@@ -847,18 +867,31 @@ function openProofModal(id) {
     img.style.display = 'none';
     noProof.style.display = 'block';
   }
-  const payBtn = document.getElementById('proof-modal-pay-btn');
-  const cancelBtn = document.getElementById('proof-modal-cancel-btn');
-  const unpayBtn = document.getElementById('proof-modal-unpay-btn');
-  payBtn.style.display    = b.status === 'Pending Verification' ? 'inline-flex' : 'none';
-  unpayBtn.style.display  = b.status === 'Confirmed' ? 'inline-flex' : 'none';
-  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Confirmed') ? 'inline-flex' : 'none';
+  const payBtn           = document.getElementById('proof-modal-pay-btn');
+  const cancelBtn        = document.getElementById('proof-modal-cancel-btn');
+  const unpayBtn         = document.getElementById('proof-modal-unpay-btn');
+  const uploadSection    = document.getElementById('proof-modal-upload-section');
+  const uploadConfirmBtn = document.getElementById('proof-modal-upload-confirm-btn');
+  const isAwaiting = b.status === 'Awaiting Payment';
+  payBtn.style.display           = b.status === 'Pending Verification' ? 'inline-flex' : 'none';
+  unpayBtn.style.display         = b.status === 'Confirmed' ? 'inline-flex' : 'none';
+  cancelBtn.style.display        = (b.status !== 'Cancelled' && b.status !== 'Confirmed') ? 'inline-flex' : 'none';
+  uploadSection.style.display    = isAwaiting ? 'block' : 'none';
+  uploadConfirmBtn.style.display = 'none'; // shown only after a file is selected
+  // reset upload area state
+  document.getElementById('proof-modal-upload-icon').style.color = 'var(--text-faint)';
+  document.getElementById('proof-modal-upload-text').innerHTML = '<strong>Click to select</strong> payment screenshot';
+  document.getElementById('proof-modal-upload-filename').textContent = '';
+  document.getElementById('proof-modal-upload-err').style.display = 'none';
+  document.getElementById('proof-modal-file-input').value = '';
+  adminProofFile = null;
   document.getElementById('proof-modal').classList.add('open');
 }
 
 function closeProofModal() {
   document.getElementById('proof-modal').classList.remove('open');
   proofModalBookingId = null;
+  adminProofFile = null;
 }
 
 async function updateBookingFromModal(status) {
@@ -866,6 +899,48 @@ async function updateBookingFromModal(status) {
   const id = proofModalBookingId;
   closeProofModal();
   await updateBooking(id, status);
+}
+
+function handleAdminProofSelect(input) {
+  if (!input.files.length) return;
+  const file = input.files[0];
+  adminProofFile = file;
+  document.getElementById('proof-modal-upload-icon').style.color = 'var(--green)';
+  document.getElementById('proof-modal-upload-text').innerHTML = `<strong style="color:var(--green)">File selected</strong>`;
+  document.getElementById('proof-modal-upload-filename').textContent = file.name;
+  document.getElementById('proof-modal-upload-err').style.display = 'none';
+  document.getElementById('proof-modal-upload-confirm-btn').style.display = 'inline-flex';
+}
+
+async function adminUploadAndConfirm() {
+  if (!proofModalBookingId || !adminProofFile) return;
+  const id = proofModalBookingId;
+  const b = allBookings.find(x => x.id === id);
+  if (!b) return;
+  const btn = document.getElementById('proof-modal-upload-confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Uploading…';
+  document.getElementById('proof-modal-upload-err').style.display = 'none';
+  try {
+    const file = adminProofFile;
+    const path = `${b.ref}/${Date.now().toString(36).toUpperCase()}_${file.name}`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/payment-proofs/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': file.type },
+      body: file,
+    });
+    if (!up.ok) throw new Error('Upload failed ' + up.status);
+    const proofUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}`;
+    await sbPatch(`bookings?id=eq.${id}`, { status: 'Confirmed', proof_url: proofUrl });
+    const local = allBookings.find(x => x.id === id);
+    if (local) { local.status = 'Confirmed'; local.proof_url = proofUrl; }
+    closeProofModal();
+    renderBookings(); updatePendingBadge();
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-upload"></i> Upload &amp; confirm';
+    document.getElementById('proof-modal-upload-err').style.display = 'block';
+  }
 }
 
 // ── EXPORT MODAL ──────────────────────────────────────────────────────────────
