@@ -678,6 +678,11 @@
           <i class="ti ti-qrcode" style="color:var(--green);vertical-align:-2px;margin-right:4px"></i>Scan to pay
         </div>
         <img id="qr-img" src="" alt="Payment QR" style="width:180px;height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);display:inline-block">
+        <div style="margin-top:10px">
+          <a id="qr-download" download="nta-payment-qr.jpg" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);text-decoration:none;padding:5px 12px;border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:var(--surface2)">
+            <i class="ti ti-download" style="font-size:13px"></i> Save QR
+          </a>
+        </div>
       </div>
 
       <div class="payment-note">
@@ -1237,7 +1242,12 @@ async function loadSettings() {
       CONFIG.qrUrl = s.qr_url;
       const qrSection = document.getElementById('qr-section');
       const qrImg     = document.getElementById('qr-img');
-      if (qrSection && qrImg) { qrImg.src = s.qr_url; qrSection.style.display = 'block'; }
+      if (qrSection && qrImg) {
+        qrImg.src = s.qr_url;
+        qrSection.style.display = 'block';
+        const dl = document.getElementById('qr-download');
+        if (dl) dl.href = s.qr_url;
+      }
     }
 
     // Closure banner
