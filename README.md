@@ -1,24 +1,29 @@
 # NTA Court Booking
 
-Online court booking system for **Nepal Tennis Association**. Members register, pick a slot, upload payment proof, and an admin verifies everything — no third-party payment gateway needed.
+Online court booking system for **Nepal Tennis Association**. Members identify themselves by phone number, pick a date and time slot, upload payment proof, and an admin verifies — no third-party payment gateway required.
 
-**Live:**
-- Booking app → `https://<your-vercel-domain>/`
-- Admin panel → `https://<your-vercel-domain>/admin`
+---
+
+## Live URLs
+
+| Page | URL |
+|------|-----|
+| Booking app | `https://<your-vercel-domain>/` |
+| Admin panel | `https://<your-vercel-domain>/admin` |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
+| Layer | Choice |
+|-------|--------|
 | Frontend | Vanilla HTML + CSS + JavaScript (no build step) |
-| Hosting | Vercel (static) |
+| Hosting | Vercel (static files) |
 | Database | Supabase (Postgres via REST API) |
-| Auth | Supabase Auth (email + password) |
-| File storage | Supabase Storage (public bucket `payment-proofs`) |
+| Auth | Supabase Auth (email + password, admin only) |
+| File storage | Supabase Storage — public bucket `payment-proofs` |
 | Icons | Tabler Icons (CDN) |
-| Fonts | Inter (Google Fonts CDN) |
+| Fonts | DM Sans + DM Serif Display (Google Fonts CDN) |
 
 ---
 
@@ -26,209 +31,150 @@ Online court booking system for **Nepal Tennis Association**. Members register, 
 
 ```
 nta/
-├── index.html                          # User-facing booking app
-├── admin.html                          # Admin panel (login-gated)
-├── favicon.svg                         # Tennis ball SVG favicon
-├── vercel.json                         # URL rewrites
+├── index.html          # Member-facing booking app
+├── admin.html          # Admin panel (login-gated)
+├── favicon.svg         # Tennis ball SVG favicon
+├── vercel.json         # URL rewrites
 └── migrations/
-    ├── 001_create_members.sql          # members table + RLS
-    ├── 002_create_bookings.sql         # bookings table + RLS (includes ai_checked)
-    ├── 003_create_settings.sql         # settings table + RLS + seed row
-    ├── 004_add_ai_checked.sql          # adds ai_checked to existing bookings table
-    └── 005_rename_statuses.sql         # renames statuses + adds CHECK constraint
+    ├── 001_create_members.sql       # members table + RLS
+    ├── 002_create_bookings.sql      # bookings table + RLS
+    ├── 003_create_settings.sql      # settings table + RLS + seed row
+    ├── 004_add_ai_checked.sql       # adds ai_checked (existing installs only)
+    └── 005_rename_statuses.sql      # renames statuses + CHECK constraint
 ```
-
-### URL Routing (`vercel.json`)
-
-```json
-{
-  "rewrites": [
-    { "source": "/admin",           "destination": "/admin.html" },
-    { "source": "/((?!admin).*)",   "destination": "/index.html" }
-  ]
-}
-```
-
-`/admin` serves the admin panel. Everything else routes to the booking app (supports deep links without 404s).
 
 ---
 
 ## Supabase Setup
 
-### 1. Tables
+Run migrations **in order** via the Supabase SQL Editor (Dashboard → SQL Editor). All files are idempotent — safe to re-run.
 
-Run the files in `migrations/` in order in the **Supabase SQL Editor** (Dashboard → SQL Editor). All files are idempotent — safe to re-run.
+### Tables
 
 #### `members`
+
 ```sql
-create table members (
-  phone         text        not null,
-  name          text        not null,
-  nationality   text        not null default 'np',   -- 'np' | 'intl'
-  is_ranked     boolean     not null default false,
-  is_verified   boolean     not null default false,
-  registered_at timestamptz not null default now(),
-  constraint members_pkey primary key (phone)
-);
-
-alter table members enable row level security;
-
--- Anyone can register
-create policy "anon_insert_members" on members
-  for insert to anon with check (true);
-
--- Anyone can look up members (needed for identify screen)
-create policy "anon_select_members" on members
-  for select to anon using (true);
-
--- Admin can do everything
-create policy "auth_all_members" on members
-  for all to authenticated using (true) with check (true);
+phone         TEXT        PRIMARY KEY
+name          TEXT        NOT NULL
+nationality   TEXT        NOT NULL DEFAULT 'np'   -- 'np' | 'intl'
+is_ranked     BOOLEAN     NOT NULL DEFAULT false
+is_verified   BOOLEAN     NOT NULL DEFAULT false
+registered_at TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
+
+RLS policies: `anon` can INSERT and SELECT (self-registration + identity lookup). `authenticated` (admin) has full access.
 
 #### `bookings`
+
 ```sql
-create table bookings (
-  id          uuid        not null default gen_random_uuid(),
-  ref         text        not null unique,
-  phone       text        not null,
-  name        text        not null,
-  court       integer     not null check (court >= 1 and court <= 6),
-  date        date        not null,
-  time_label  text        not null,          -- e.g. "7:00 AM – 9:00 AM"
-  slots       integer[]   not null,          -- e.g. {7,8}
-  match_type  text        not null check (match_type = any (array['singles','doubles'])),
-  amount      integer     not null,
-  status      text        not null default 'Pending Payment',
-  proof_url   text,
-  ai_checked  boolean     not null default false,
-  created_at  timestamptz not null default now(),
-  constraint bookings_pkey primary key (id)
-);
-
-alter table bookings enable row level security;
-
--- Anyone can create a booking
-create policy "anon_insert_bookings" on bookings
-  for insert to anon with check (true);
-
--- Anyone can read bookings (needed for status screen)
-create policy "anon_select_bookings" on bookings
-  for select to anon using (true);
-
--- Anyone can update bookings (needed for proof upload + re-upload)
-create policy "anon_update_bookings" on bookings
-  for update to anon using (true) with check (true);
-
--- Admin can do everything
-create policy "auth_all_bookings" on bookings
-  for all to authenticated using (true) with check (true);
+id          UUID        PRIMARY KEY DEFAULT gen_random_uuid()
+ref         TEXT        NOT NULL UNIQUE            -- e.g. NTA-A1B2-C3D
+phone       TEXT        NOT NULL
+name        TEXT        NOT NULL
+court       INTEGER     NOT NULL CHECK (1–6)
+date        DATE        NOT NULL
+time_label  TEXT        NOT NULL                   -- e.g. "7:00 AM – 9:00 AM"
+slots       INTEGER[]   NOT NULL                   -- e.g. {7,8}
+match_type  TEXT        NOT NULL CHECK ('singles'|'doubles')
+amount      INTEGER     NOT NULL
+status      TEXT        NOT NULL DEFAULT 'Awaiting Payment'
+proof_url   TEXT
+ai_checked  BOOLEAN     NOT NULL DEFAULT false
+created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
+
+Valid statuses (enforced by CHECK constraint): `Awaiting Payment`, `Pending Verification`, `Confirmed`, `Cancelled`.
+
+RLS policies: `anon` can INSERT, SELECT, and UPDATE (needed for proof upload). `authenticated` (admin) has full access.
 
 #### `settings`
 
-Use the included `setup-settings.sql` file, or paste this:
+Single-row config table (id = 1).
 
 ```sql
-create table if not exists settings (
-  id              int  primary key default 1,
-  closure_from    date,
-  closure_to      date,
-  closure_message text    default 'Courts are temporarily closed.',
-  open_from       int     not null default 6,
-  open_to         int     not null default 19,
-  price_singles   int     not null default 400,
-  price_doubles   int     not null default 600,
-  whatsapp        text    default '9779841044844',
-  qr_url          text
-);
-
-insert into settings (id) values (1) on conflict (id) do nothing;
-
-alter table settings enable row level security;
-
--- Booking app can read settings
-create policy "anon_select_settings" on settings
-  for select to anon using (true);
-
--- Admin can update settings
-create policy "auth_all_settings" on settings
-  for all to authenticated using (true) with check (true);
+id              INT  PRIMARY KEY DEFAULT 1
+open_from       INT     NOT NULL DEFAULT 6       -- hour, 0–23
+open_to         INT     NOT NULL DEFAULT 19      -- hour, 0–23
+price_singles   INT     NOT NULL DEFAULT 400     -- NPR per hour
+price_doubles   INT     NOT NULL DEFAULT 600     -- NPR per hour
+whatsapp        TEXT    DEFAULT '9779841044844'
+qr_url          TEXT                             -- payment QR image URL
+closure_from    DATE
+closure_to      DATE
+closure_message TEXT    DEFAULT 'Courts are temporarily closed.'
 ```
 
-### 2. Storage Bucket
+RLS policies: `anon` can SELECT. `authenticated` (admin) has full access.
 
-1. Go to **Storage → New bucket**
-2. Name: `payment-proofs`
-3. Public: **Yes**
-4. Add storage policies:
+### Storage Bucket
+
+1. Create a bucket named **`payment-proofs`** — set to **Public**.
+2. Apply these storage policies:
 
 ```sql
--- Allow anyone to upload proof images
-create policy "anon_upload_proofs" on storage.objects
-  for insert to anon with check (bucket_id = 'payment-proofs');
+-- Anyone can upload proof images
+CREATE POLICY "anon_upload_proofs" ON storage.objects
+  FOR INSERT TO anon WITH CHECK (bucket_id = 'payment-proofs');
 
--- Allow anyone to read files
-create policy "anon_read_proofs" on storage.objects
-  for select to anon using (bucket_id = 'payment-proofs');
+-- Anyone can read files (needed to display proofs in admin)
+CREATE POLICY "anon_read_proofs" ON storage.objects
+  FOR SELECT TO anon USING (bucket_id = 'payment-proofs');
 
--- Allow anyone to update (needed for re-uploading proof)
-create policy "anon_update_proofs" on storage.objects
-  for update to anon using (bucket_id = 'payment-proofs');
+-- Anyone can update (needed for re-upload)
+CREATE POLICY "anon_update_proofs" ON storage.objects
+  FOR UPDATE TO anon USING (bucket_id = 'payment-proofs');
 
 -- Admin can delete
-create policy "auth_all_proofs" on storage.objects
-  for all to authenticated using (bucket_id = 'payment-proofs');
+CREATE POLICY "auth_all_proofs" ON storage.objects
+  FOR ALL TO authenticated USING (bucket_id = 'payment-proofs');
 ```
 
-### 3. Admin User
+### Admin User
 
-Create one admin user via **Authentication → Users → Invite user**. Only authenticated (admin) users can approve/cancel bookings or change settings. There is no self-registration for admin accounts.
+Create one admin account via **Authentication → Users → Invite user**. There is no self-registration for admin accounts. The session is stored in `sessionStorage` — it survives hard refreshes but clears when the tab is closed. A 401 mid-session redirects to the login screen automatically.
 
 ---
 
 ## Configuration
 
-Both HTML files share two constants near the top of their `<script>` block:
+Both HTML files have two constants at the top of their `<script>` block:
 
 ```js
 const SUPABASE_URL = 'https://xxxxxxxxxxxxxxxxxxxx.supabase.co';
-const SUPABASE_KEY = 'eyJ...';   // publishable anon key — safe to expose
+const SUPABASE_KEY = 'eyJ...';   // anon (publishable) key — safe to expose
 ```
 
-These are the only values you need to change when deploying to a new Supabase project. The anon key has limited permissions enforced by Row Level Security — it is intentionally public.
-
-All other configuration (prices, opening hours, WhatsApp number, QR code, closure dates) is managed through the **Settings tab** in the admin panel and stored in the `settings` table.
+These are the only values to update when deploying to a new Supabase project. Everything else — prices, opening hours, WhatsApp number, QR code, closure dates — is managed through the **Settings tab** in the admin panel.
 
 ---
 
 ## User Flow
 
 ```
-[Identify screen]
+Enter phone number
     │
-    ├── new user ──→ [Register] ──→ back to Identify
+    ├── new number ──→ Register (name, nationality, ranked?) ──→ continue
     │
-    ▼ returning member
-[Book a Court]
-    │  • Today / Tomorrow buttons (not a date picker)
-    │  • Pick time slot
-    │  • Pick court (Court 1 / Court 2)
-    │  • Pick type (Singles / Doubles)
+    ▼ known member
+Select date (Today / Tomorrow)
     │
-    ▼
-[Payment screen]
-    │  • Price shown (from settings)
-    │  • QR code (if uploaded in admin Settings)
-    │  • WhatsApp contact link
-    │  • Upload payment screenshot
+Select time slot(s) — up to 2 consecutive hours
     │
-    ▼
-[Confirmation / Status screen]
-       • Booking reference (e.g. NTA-2024-0042)
+Select court (1–6, greyed out if already booked)
+    │
+Select match type (Singles / Doubles)
+    │
+Payment screen
+    │  • Amount shown (from settings)
+    │  • QR code (if uploaded in admin)
+    │  • WhatsApp link to NTA staff
+    │  • Upload payment screenshot / photo
+    │
+Confirmation screen
+       • Booking reference (e.g. NTA-A1B2-C3)
        • Live status badge
        • Refresh button to poll for updates
-       • Re-upload proof option (while Pending / Payment Submitted)
+       • Re-upload proof option (while Awaiting Payment or Pending Verification)
 ```
 
 ### Booking Status Lifecycle
@@ -239,180 +185,173 @@ Awaiting Payment  →  Pending Verification  →  Confirmed
                   →  Cancelled
 ```
 
-Overdue bookings (Awaiting Payment > 10 min) are flagged with an **Overdue** tag in the admin panel. The admin cancels them manually — there is no automatic expiry.
+Rows that have been **Awaiting Payment for more than 10 minutes** are flagged with an **Overdue** tag in the admin panel. The admin cancels them manually — there is no automatic expiry.
 
 ---
 
 ## Admin Panel
 
-### Login
+### Bookings Tab *(default)*
 
-Supabase email + password authentication. The session is kept in `sessionStorage` so it survives hard refreshes (Cmd+Shift+R) but is cleared when the tab is closed.
-
-If the JWT expires mid-session, the next API call returns 401 and the admin is automatically redirected to the login screen with a "Session expired" message.
-
-### Bookings Tab *(default tab)*
-
-| Feature | Detail |
-|---|---|
-| Auto-refresh | Table polls every 60 s; red badge on the tab shows pending-proof count |
-| Row highlight | Blue left-border on rows requiring action (status = Payment Submitted) |
-| Date filter | Today / Yesterday / Last 7 days / Last 30 days / All time — filters by court date |
-| Proof icon | Small 📷 icon next to the status badge on Payment Submitted and Paid rows; opens proof modal |
-| Proof modal | Full-size image popup with Mark paid / Undo paid / Cancel buttons |
-| Mark paid | Available on Payment Submitted rows |
-| Undo paid | Available on Paid rows — rolls status back to Payment Submitted |
-| Cancel | Available on non-final rows (Pending, Payment Submitted) |
-| AI column | Shows a green "Checked" badge when `ai_checked = true`, dash otherwise |
-| Export CSV | Choose 30 days / 90 days / All; downloads all booking fields |
+- **Auto-refresh** every 60 seconds; red badge shows count of rows needing action
+- **Search** by booking ref, member name, or phone number
+- **Filters** by status and date range (Today / Yesterday / Last 7 days / Last 30 days / All time)
+- **Stats bar** reflects the current filter: total, awaiting payment, pending verification, confirmed, cancelled
+- **Overdue tag** on Awaiting Payment rows older than 10 minutes
+- **Proof icon** (📷) inline with the status badge — click to open the proof modal
+- **Proof modal** — full-size image with Confirm / Undo / Cancel actions
+- **Row actions** — Confirm (Pending Verification rows), Undo (Confirmed rows), Cancel (any open row)
+- **AI checked badge** — green "Checked" badge when `ai_checked = true` (placeholder for future automation)
+- **Export CSV** — choose 30 days / 90 days / All time
+- **Add Booking** — manually create a booking on behalf of a member
 
 ### Members Tab
 
-- Lists all registered members with name, email, phone, and verified status
-- Red badge on the tab shows count of unverified members
-- Toggle verified / unverified per member with one click
+- Lists all registered members with name, phone, nationality, ranked status, and verified status
+- Red badge shows count of unverified members
+- Toggle verified / unverified with one click
+- **Add Member** — manually register a member
 
 ### Settings Tab
 
-Four cards, each saved independently:
-
 | Card | Fields |
-|---|---|
-| **Opening Hours** | Open from / Open to (hourly, 00:00–23:00). Drives available time slots in the booking app. |
-| **Closure / Maintenance** | From date, To date, Custom message. Banner appears 7 days before closure starts and throughout the closure period. |
-| **Pricing** | Singles price (NPR), Doubles price (NPR) |
-| **Contact & Payment** | WhatsApp number (with country code, no `+`), QR code image upload (any image format) |
+|------|--------|
+| **Opening Hours** | Open from / Open to (hourly). Drives available time slots in the booking app. |
+| **Closure / Maintenance** | From date, To date, custom message. A banner appears in the booking app 7 days before the closure starts and throughout the closure period. |
+| **Pricing** | Singles price (NPR/hr), Doubles price (NPR/hr) |
+| **Contact & Payment** | WhatsApp number, QR code image upload |
 
 ---
 
 ## Booking Rules
 
 | Rule | Value |
-|---|---|
-| Booking window | Today and tomorrow only (two-button selector) |
+|------|-------|
+| Booking window | Today and tomorrow only |
 | Slot duration | 1 hour |
-| Available slots | Driven by `open_from` / `open_to` in settings (default 06:00–19:00) |
-| Courts | Court 1, Court 2 |
-| Types | Singles, Doubles |
-| Default prices | Singles NPR 400 / Doubles NPR 600 |
+| Max consecutive slots | 2 |
+| Available hours | Configurable via settings (default 06:00–19:00) |
+| Courts | 1–6 (hardcoded; court count matches the CHECK constraint) |
+| Match types | Singles, Doubles |
+| Default prices | Singles NPR 400 / hr · Doubles NPR 600 / hr |
 | Double-booking prevention | None — admin resolves conflicts manually |
-
-**Example:** On May 28 a member can book any slot on May 28 or May 29. On May 29 they can book May 29 or May 30.
-
----
-
-## Closure Banner
-
-The booking app shows a banner on the booking screen when a closure is configured:
-
-- **7 days before closure starts:** `"Upcoming closure from 10 Jun to 15 Jun: Courts are temporarily closed."`
-- **During the closure period:** `"Courts are temporarily closed."` (the configured message as-is)
-
-The banner is informational only — it does not block bookings.
 
 ---
 
 ## Payment Proof Storage
 
-Proof images are stored in Supabase Storage under `payment-proofs/`:
+Images are compressed client-side (max 800 px, JPEG 0.6 quality) before upload. Files are stored under the booking's ref folder:
 
 ```
 payment-proofs/
-└── NTA-2024-0042/
-    ├── 1716825600000_receipt.jpg    # original upload
-    └── 1716826000000_receipt2.jpg   # re-upload (if user replaced proof)
+└── NTA-A1B2-C3/
+    ├── receipt.jpg              # original upload
+    └── 1A2B3C_receipt.jpg       # re-upload (timestamped prefix)
 settings/
-    └── qr.jpg                       # QR code (overwritten on each upload)
+    └── qr.jpg                   # QR code image (overwritten on each upload)
 ```
 
-Images are compressed client-side before upload (max 800 px, JPEG quality 0.6) to keep storage usage low.
+---
+
+## Closure Banner
+
+The booking app shows a banner when a closure is configured in settings:
+
+- **Up to 7 days before start:** "Upcoming closure from 10 Jun to 15 Jun: Courts are temporarily closed."
+- **During the closure:** "Courts are temporarily closed." (the configured message)
+
+The banner is informational only — it does not block bookings.
 
 ---
 
 ## Deployment
 
-### Vercel (Recommended)
+### Vercel (recommended)
 
-1. Push this repository to GitHub.
-2. Import the project at [vercel.com/new](https://vercel.com/new).
-3. No build command needed — Vercel serves the static files directly.
-4. The `vercel.json` rewrites are picked up automatically.
+1. Push this repo to GitHub.
+2. Import at [vercel.com/new](https://vercel.com/new) — no build command needed.
+3. `vercel.json` rewrites are picked up automatically.
 
-### Manual Deploy via CLI
+### CLI
 
 ```bash
 npm i -g vercel
 vercel --prod
 ```
 
-### First-Time Setup Checklist
+### URL Routing (`vercel.json`)
+
+```json
+{ "source": "/admin",           "destination": "/admin.html" }
+{ "source": "/((?!admin).*)",   "destination": "/index.html" }
+```
+
+`/admin` serves the admin panel. Everything else routes to the booking app (supports direct links without 404s).
+
+---
+
+## First-Time Setup Checklist
 
 - [ ] Create a Supabase project
-- [ ] Run `migrations/001` through `003` in the Supabase SQL Editor
-- [ ] Create the `payment-proofs` storage bucket (public) and apply the storage policies
+- [ ] Run `migrations/001` through `003` in the SQL Editor (in order)
+- [ ] Create the `payment-proofs` storage bucket (public) and apply the four storage policies
 - [ ] Create an admin user via Supabase Auth → Users → Invite
 - [ ] Update `SUPABASE_URL` and `SUPABASE_KEY` in both `index.html` and `admin.html`
 - [ ] Deploy to Vercel
-- [ ] Open `/admin`, log in, go to Settings → configure prices, opening hours, WhatsApp number, and upload a QR code image
+- [ ] Log in to `/admin` → Settings → set prices, opening hours, WhatsApp number, QR code
 
-### Existing Project Migration
+## Existing Installation Migration
 
-If upgrading from an earlier version of this codebase:
+Run these if upgrading an existing database (fresh installs from `002` already include these changes):
 
-- [ ] Run `migrations/004_add_ai_checked.sql` to add the `ai_checked` column to the existing `bookings` table
-- [ ] Run `migrations/005_rename_statuses.sql` to rename booking statuses and add a CHECK constraint
-
----
-
-## Known Limitations
-
-- **No double-booking prevention** — two users can book the same court + slot simultaneously. The admin resolves conflicts manually.
-- **No email notifications** — status updates are only visible by revisiting the confirmation screen.
-- **No slot availability display** — the booking form shows all slots regardless of existing bookings.
-- **Closure mode is informational only** — the banner warns members but does not block bookings.
-- **Single admin recommended** — there is no per-admin audit trail; all actions appear under the same authenticated session.
-
----
-
-## Future Implementation
-
-### AI Payment Proof Verification
-
-The `ai_checked` boolean column on the `bookings` table is a placeholder for automated payment proof checking. The planned flow:
-
-1. When a user uploads a payment proof, trigger an AI vision check on the image
-2. The AI verifies the screenshot looks like a genuine bank transfer / eSewa / Khalti payment for the correct amount
-3. On success, set `ai_checked = true` on the booking; optionally auto-advance status to Paid
-4. On failure or low confidence, leave `ai_checked = false` and flag for manual admin review
-
-The admin bookings table already shows a green **Checked** badge when `ai_checked = true` and a dash when `false` — no UI changes needed when this is implemented.
-
-**Suggested implementation approach:**
-- Supabase Edge Function triggered by a `bookings` table INSERT or UPDATE (when `proof_url` changes)
-- Call a vision model (e.g. GPT-4o, Claude) with the proof image URL and booking amount
-- Parse the response and PATCH `ai_checked` accordingly
-- Optionally PATCH `status` to `Paid` if confidence is high enough
-
-### Slot Availability / Double-Booking Prevention
-
-Currently all time slots are shown regardless of existing bookings. A future improvement would grey out or hide slots that are already taken, and enforce a unique constraint on `(date, court, slot)` at the database level.
-
-### Email / SMS Notifications
-
-Notify members automatically when their booking status changes (e.g. "Your booking NTA-2024-0042 has been confirmed"). Could be implemented via Supabase Edge Functions + Resend (email) or a local SMS gateway.
-
-### Multiple Admin Accounts
-
-Add an audit log table to track which admin performed each action (Mark paid, Cancel, etc.), with timestamps and the admin's email.
+- [ ] `migrations/004_add_ai_checked.sql` — adds the `ai_checked` column
+- [ ] `migrations/005_rename_statuses.sql` — renames statuses and adds a CHECK constraint
 
 ---
 
 ## Supabase Keys Reference
 
 | Key | Where to find | Safe to expose? |
-|---|---|---|
+|-----|---------------|-----------------|
 | Project URL | Settings → API → Project URL | Yes |
-| `anon` public key | Settings → API → Project API keys → `anon` | **Yes** — RLS enforces access |
+| `anon` key | Settings → API → Project API keys → `anon` | **Yes** — RLS enforces access |
 | `service_role` key | Settings → API → Project API keys → `service_role` | **No** — never put this in frontend code |
 
-Only the `anon` key is used in this project. It is embedded in the HTML source intentionally. All sensitive operations are protected by Supabase Row Level Security policies.
+Only the `anon` key is used in this project. It is embedded in the HTML intentionally.
+
+---
+
+## Known Limitations
+
+- **No double-booking prevention** — two members can book the same court and slot simultaneously. Admin resolves conflicts manually.
+- **No email or SMS notifications** — members check status by revisiting the confirmation screen.
+- **No slot availability display** — the booking form shows all slots; taken courts are only greyed out after a slot is selected.
+- **Closure banner is informational only** — does not block bookings during a closure.
+- **Single admin account recommended** — no per-admin audit trail.
+
+---
+
+## Planned Improvements
+
+### AI Payment Proof Verification
+
+The `ai_checked` boolean on `bookings` is a placeholder. Planned flow:
+
+1. When `proof_url` is set on a booking, trigger a Supabase Edge Function
+2. Pass the image to a vision model (e.g. Claude, GPT-4o) with the expected amount
+3. On high-confidence match → set `ai_checked = true`, optionally advance status to `Confirmed`
+4. On low confidence → leave `ai_checked = false` for manual admin review
+
+The admin table already shows a green **Checked** badge when `ai_checked = true` — no UI changes needed.
+
+### Slot Availability
+
+Show remaining available slots before a court is selected, and add a unique DB constraint on `(date, court, slots)` to enforce it at the database level.
+
+### Notifications
+
+Notify members when their booking status changes (Confirmed / Cancelled) via Supabase Edge Functions + Resend (email) or an SMS gateway.
+
+### Multi-Admin Audit Log
+
+Track which admin performed each action (Confirm, Cancel, etc.) with timestamps in a separate `audit_log` table.
