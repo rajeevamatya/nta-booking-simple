@@ -679,9 +679,9 @@
         </div>
         <img id="qr-img" src="" alt="Payment QR" style="width:180px;height:180px;border-radius:var(--radius-sm);border:1px solid var(--border);display:inline-block">
         <div style="margin-top:10px">
-          <a id="qr-download" download="nta-payment-qr.jpg" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);text-decoration:none;padding:5px 12px;border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:var(--surface2)">
+          <button onclick="downloadQR()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);padding:5px 12px;border:1px solid var(--border-mid);border-radius:var(--radius-sm);background:var(--surface2);cursor:pointer">
             <i class="ti ti-download" style="font-size:13px"></i> Save QR
-          </a>
+          </button>
         </div>
       </div>
 
@@ -831,6 +831,17 @@ function fmtRange(slots) {
 function fmtDate(d) {
   if (!d) return '';
   return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+async function downloadQR() {
+  if (!CONFIG.qrUrl) return;
+  try {
+    const blob = await fetch(CONFIG.qrUrl).then(r => r.blob());
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'nta-payment-qr.jpg';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { window.open(CONFIG.qrUrl, '_blank'); }
 }
 function genRef() {
   return 'NTA-' + Date.now().toString(36).toUpperCase().slice(-4) + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
@@ -1245,8 +1256,6 @@ async function loadSettings() {
       if (qrSection && qrImg) {
         qrImg.src = s.qr_url;
         qrSection.style.display = 'block';
-        const dl = document.getElementById('qr-download');
-        if (dl) dl.href = s.qr_url;
       }
     }
 
