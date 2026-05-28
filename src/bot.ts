@@ -251,7 +251,19 @@ export async function processMessage(
   mediaUrl: string | null,
 ): Promise<string> {
   const phone = from.replace('whatsapp:', '');
-  await upsertMember(phone);
+
+  const { data: member } = await getSupabase()
+    .from('members')
+    .select('is_verified')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (!member) {
+    return 'You are not registered with NTA. Please register through the NTA website or contact the admin to get started.';
+  }
+  if (!member.is_verified) {
+    return 'Your membership is pending verification. Please contact NTA admin to verify your account before booking.';
+  }
 
   const settings = await getSettings();
   const history = await getHistory(phone);
