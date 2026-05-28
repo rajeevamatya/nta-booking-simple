@@ -193,8 +193,8 @@
       <div id="members-stats" class="stat-row"></div>
       <div class="toolbar">
         <input type="text" id="member-search" placeholder="Search by name or phone…" oninput="renderMembers()">
-        <button class="action-btn btn-paid" onclick="openAddMemberModal()" style="margin-left:auto"><i class="ti ti-user-plus"></i> Add Member</button>
-        <button class="btn-export" onclick="exportCSV('members')"><i class="ti ti-table-export"></i> Export CSV</button>
+        <button class="btn-export" onclick="exportCSV('members')" style="margin-left:auto"><i class="ti ti-table-export"></i> Export CSV</button>
+        <button class="action-btn btn-paid" onclick="openAddMemberModal()"><i class="ti ti-user-plus"></i> Add Member</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -222,8 +222,8 @@
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
         </select>
+        <button class="btn-export" onclick="showExportModal()" style="margin-left:auto"><i class="ti ti-table-export"></i> Export CSV</button>
         <button class="action-btn btn-paid" onclick="openAddBookingModal()"><i class="ti ti-calendar-plus"></i> Add Booking</button>
-        <button class="btn-export" onclick="showExportModal()"><i class="ti ti-table-export"></i> Export CSV</button>
       </div>
       <div class="table-wrap">
         <table>
