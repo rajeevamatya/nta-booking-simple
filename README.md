@@ -233,10 +233,12 @@ All other configuration (prices, opening hours, WhatsApp number, QR code, closur
 ### Booking Status Lifecycle
 
 ```
-Pending  →  Payment Submitted  →  Paid
-                               →  Cancelled
-         →  Cancelled
+Awaiting Payment  →  Pending Verification  →  Confirmed
+                                           →  Cancelled
+                  →  Cancelled
 ```
+
+Overdue bookings (Awaiting Payment > 10 min) are flagged with an **Overdue** tag in the admin panel. The admin cancels them manually — there is no automatic expiry.
 
 ---
 

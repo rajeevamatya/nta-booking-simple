@@ -15,6 +15,5 @@ ALTER TABLE bookings
     'Awaiting Payment',
     'Pending Verification',
     'Confirmed',
-    'Cancelled',
-    'Expired'
+    'Cancelled'
   ]));

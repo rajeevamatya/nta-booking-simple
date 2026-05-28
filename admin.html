@@ -211,7 +211,6 @@
         <select id="booking-status-filter" onchange="renderBookings()">
           <option value="">All statuses</option>
           <option>Awaiting Payment</option>
-          <option>Expired</option>
           <option>Pending Verification</option>
           <option>Confirmed</option>
           <option>Cancelled</option>
@@ -746,13 +745,13 @@ function renderBookingsStats() {
   const pending    = list.filter(b => b.status === 'Awaiting Payment').length;
   const review     = list.filter(b => b.status === 'Pending Verification').length;
   const confirmed  = list.filter(b => b.status === 'Confirmed').length;
-  const expired    = list.filter(b => b.status === 'Expired').length;
+  const cancelled  = list.filter(b => b.status === 'Cancelled').length;
   document.getElementById('bookings-stats').innerHTML = `
     <div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat"><div class="stat-val" style="color:#854d0e">${pending}</div><div class="stat-lbl">Awaiting payment</div></div>
     <div class="stat"><div class="stat-val" style="color:#1e40af">${review}</div><div class="stat-lbl">Pending verification</div></div>
     <div class="stat"><div class="stat-val" style="color:#166534">${confirmed}</div><div class="stat-lbl">Confirmed</div></div>
-    <div class="stat"><div class="stat-val" style="color:#6b7280">${expired}</div><div class="stat-lbl">Expired</div></div>`;
+    <div class="stat"><div class="stat-val" style="color:#6b7280">${cancelled}</div><div class="stat-lbl">Cancelled</div></div>`;
 }
 
 function getDateCutoff(days) {
@@ -790,12 +789,11 @@ function renderBookings() {
   tbody.innerHTML = filtered.map(b => {
     const hasProof = !!b.proof_url;
     const canConfirm = b.status === 'Pending Verification';
-    const canCancel  = b.status !== 'Cancelled' && b.status !== 'Confirmed' && b.status !== 'Expired';
+    const canCancel  = b.status !== 'Cancelled' && b.status !== 'Confirmed';
     const isOverdue  = b.status === 'Awaiting Payment' && b.created_at && (now - new Date(b.created_at).getTime()) > 10 * 60 * 1000;
     let actions = '';
     if (canConfirm) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Confirmed')" style="padding:4px 9px;font-size:11px">Confirm</button>`;
     if (b.status === 'Confirmed') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Pending Verification')" style="padding:4px 9px;font-size:11px">Undo</button>`;
-    if (b.status === 'Awaiting Payment') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Expired')" style="padding:4px 9px;font-size:11px">Expire</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')" style="padding:4px 9px;font-size:11px">Cancel</button>`;
     const proofIcon = hasProof
       ? `<button onclick="openProofModal('${b.id}')" title="View proof" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-photo" style="font-size:13px"></i></button>`
@@ -853,7 +851,7 @@ function openProofModal(id) {
   const unpayBtn = document.getElementById('proof-modal-unpay-btn');
   payBtn.style.display    = b.status === 'Pending Verification' ? 'inline-flex' : 'none';
   unpayBtn.style.display  = b.status === 'Confirmed' ? 'inline-flex' : 'none';
-  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Confirmed' && b.status !== 'Expired') ? 'inline-flex' : 'none';
+  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Confirmed') ? 'inline-flex' : 'none';
   document.getElementById('proof-modal').classList.add('open');
 }
 
@@ -1018,7 +1016,6 @@ function statusBadge(s) {
     'Pending Verification':'badge-submitted',
     'Confirmed':           'badge-paid',
     'Cancelled':           'badge-cancelled',
-    'Expired':             'badge-cancelled',
   };
   return `<span class="badge ${map[s]||''}">${esc(s)}</span>`;
 }
