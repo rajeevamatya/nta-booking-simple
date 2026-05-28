@@ -253,11 +253,20 @@ export async function processMessage(
 ): Promise<string> {
   const phone = from.replace('whatsapp:', '');
 
-  const { data: member } = await getSupabase()
+  let { data: member } = await getSupabase()
     .from('members')
     .select('name, is_verified')
     .eq('phone', phone)
     .maybeSingle();
+
+  // Fallback: member registered with local format (e.g. 9841234567) but Twilio sends +9779841234567
+  if (!member && phone.startsWith('+977')) {
+    ({ data: member } = await getSupabase()
+      .from('members')
+      .select('name, is_verified')
+      .eq('phone', phone.slice(4))
+      .maybeSingle());
+  }
 
   if (!member) {
     return 'You are not registered with NTA. Please register through the NTA website or contact the admin to get started.';
