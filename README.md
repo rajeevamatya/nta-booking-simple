@@ -26,12 +26,15 @@ Online court booking system for **Nepal Tennis Association**. Members register, 
 
 ```
 nta/
-├── index.html            # User-facing booking app
-├── admin.html            # Admin panel (login-gated)
-├── favicon.svg           # Tennis ball SVG favicon
-├── vercel.json           # URL rewrites
-├── setup-settings.sql    # One-time SQL — creates settings table
-└── add-ai-checked.sql    # Migration — adds ai_checked column to bookings
+├── index.html                          # User-facing booking app
+├── admin.html                          # Admin panel (login-gated)
+├── favicon.svg                         # Tennis ball SVG favicon
+├── vercel.json                         # URL rewrites
+└── migrations/
+    ├── 001_create_members.sql          # members table + RLS
+    ├── 002_create_bookings.sql         # bookings table + RLS (includes ai_checked)
+    ├── 003_create_settings.sql         # settings table + RLS + seed row
+    └── 004_add_ai_checked.sql          # adds ai_checked to existing bookings table
 ```
 
 ### URL Routing (`vercel.json`)
@@ -53,7 +56,7 @@ nta/
 
 ### 1. Tables
 
-Run these in the **Supabase SQL Editor** (Dashboard → SQL Editor).
+Run the files in `migrations/` in order in the **Supabase SQL Editor** (Dashboard → SQL Editor). All files are idempotent — safe to re-run.
 
 #### `members`
 ```sql
@@ -342,8 +345,7 @@ vercel --prod
 ### First-Time Setup Checklist
 
 - [ ] Create a Supabase project
-- [ ] Run the `members` and `bookings` table SQL above (include `ai_checked` column)
-- [ ] Run `setup-settings.sql` for the settings table
+- [ ] Run `migrations/001` through `003` in the Supabase SQL Editor
 - [ ] Create the `payment-proofs` storage bucket (public) and apply the storage policies
 - [ ] Create an admin user via Supabase Auth → Users → Invite
 - [ ] Update `SUPABASE_URL` and `SUPABASE_KEY` in both `index.html` and `admin.html`
@@ -354,7 +356,7 @@ vercel --prod
 
 If upgrading from an earlier version of this codebase:
 
-- [ ] Run `add-ai-checked.sql` to add the `ai_checked` column to the existing `bookings` table
+- [ ] Run `migrations/004_add_ai_checked.sql` to add the `ai_checked` column to the existing `bookings` table
 
 ---
 

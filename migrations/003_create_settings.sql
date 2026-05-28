@@ -1,4 +1,4 @@
--- Run this in Supabase SQL editor (Dashboard → SQL Editor)
+-- Migration 003: Create settings table
 -- Safe to re-run — uses IF NOT EXISTS and ON CONFLICT DO NOTHING
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Seed the single config row
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
--- Row-level security
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "anon_select_settings" ON settings;
