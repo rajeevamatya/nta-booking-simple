@@ -210,9 +210,10 @@
         <input type="text" id="booking-search" placeholder="Search by ref, name or phone…" oninput="renderBookings()">
         <select id="booking-status-filter" onchange="renderBookings()">
           <option value="">All statuses</option>
-          <option>Pending Payment</option>
-          <option>Payment Submitted</option>
-          <option>Paid</option>
+          <option>Awaiting Payment</option>
+          <option>Expired</option>
+          <option>Pending Verification</option>
+          <option>Confirmed</option>
           <option>Cancelled</option>
         </select>
         <select id="booking-date-filter" onchange="renderBookings()">
@@ -352,8 +353,8 @@
     <div class="modal-foot" id="proof-modal-foot">
       <button class="action-btn btn-cancel-edit" onclick="closeProofModal()"><i class="ti ti-x"></i> Close</button>
       <button class="action-btn btn-cancel" id="proof-modal-cancel-btn" onclick="updateBookingFromModal('Cancelled')" style="display:none"><i class="ti ti-ban"></i> Cancel booking</button>
-      <button class="action-btn btn-unverify" id="proof-modal-unpay-btn" onclick="updateBookingFromModal('Payment Submitted')" style="display:none"><i class="ti ti-arrow-back-up"></i> Undo paid</button>
-      <button class="action-btn btn-paid" id="proof-modal-pay-btn" onclick="updateBookingFromModal('Paid')" style="display:none"><i class="ti ti-check"></i> Mark as paid</button>
+      <button class="action-btn btn-unverify" id="proof-modal-unpay-btn" onclick="updateBookingFromModal('Pending Verification')" style="display:none"><i class="ti ti-arrow-back-up"></i> Undo confirm</button>
+      <button class="action-btn btn-paid" id="proof-modal-pay-btn" onclick="updateBookingFromModal('Confirmed')" style="display:none"><i class="ti ti-check"></i> Confirm payment</button>
     </div>
   </div>
 </div>
@@ -485,9 +486,9 @@
       <div>
         <label class="settings-label">Status</label>
         <select class="settings-input" id="ab-status">
-          <option value="Pending Payment">Pending Payment</option>
-          <option value="Payment Submitted">Payment Submitted</option>
-          <option value="Paid">Paid</option>
+          <option value="Awaiting Payment">Awaiting Payment</option>
+          <option value="Pending Verification">Pending Verification</option>
+          <option value="Confirmed">Confirmed</option>
         </select>
       </div>
       <div id="ab-error" style="font-size:12px;color:#dc2626;display:none"></div>
@@ -546,7 +547,7 @@ function handleExpired() {
 }
 
 function updatePendingBadge() {
-  const count = allBookings.filter(b => b.status === 'Payment Submitted').length;
+  const count = allBookings.filter(b => b.status === 'Pending Verification').length;
   const badge = document.getElementById('pending-badge');
   if (!badge) return;
   badge.textContent = count;
@@ -740,15 +741,18 @@ async function saveMember(phone) {
 // ── BOOKINGS ──────────────────────────────────────────────────────────────────
 
 function renderBookingsStats() {
-  const total = allBookings.length;
-  const submitted = allBookings.filter(b => b.status === 'Payment Submitted').length;
-  const paid = allBookings.filter(b => b.status === 'Paid').length;
-  const pending = allBookings.filter(b => b.status === 'Pending Payment').length;
+  const list = getFilteredBookings();
+  const total      = list.length;
+  const pending    = list.filter(b => b.status === 'Awaiting Payment').length;
+  const review     = list.filter(b => b.status === 'Pending Verification').length;
+  const confirmed  = list.filter(b => b.status === 'Confirmed').length;
+  const expired    = list.filter(b => b.status === 'Expired').length;
   document.getElementById('bookings-stats').innerHTML = `
-    <div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Total bookings</div></div>
-    <div class="stat"><div class="stat-val" style="color:#1e40af">${submitted}</div><div class="stat-lbl">Awaiting review</div></div>
-    <div class="stat"><div class="stat-val" style="color:#166534">${paid}</div><div class="stat-lbl">Paid & confirmed</div></div>
-    <div class="stat"><div class="stat-val" style="color:#854d0e">${pending}</div><div class="stat-lbl">Pending payment</div></div>`;
+    <div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-val" style="color:#854d0e">${pending}</div><div class="stat-lbl">Awaiting payment</div></div>
+    <div class="stat"><div class="stat-val" style="color:#1e40af">${review}</div><div class="stat-lbl">Pending verification</div></div>
+    <div class="stat"><div class="stat-val" style="color:#166534">${confirmed}</div><div class="stat-lbl">Confirmed</div></div>
+    <div class="stat"><div class="stat-val" style="color:#6b7280">${expired}</div><div class="stat-lbl">Expired</div></div>`;
 }
 
 function getDateCutoff(days) {
@@ -759,7 +763,7 @@ function getDateCutoff(days) {
   return d;
 }
 
-function renderBookings() {
+function getFilteredBookings() {
   const q = (document.getElementById('booking-search')?.value || '').toLowerCase();
   const statusF = document.getElementById('booking-status-filter')?.value || '';
   const dateF = document.getElementById('booking-date-filter')?.value || '';
@@ -767,7 +771,7 @@ function renderBookings() {
   const yest = new Date(); yest.setDate(yest.getDate() - 1);
   const yesterdayStr = yest.toISOString().split('T')[0];
   const cutoffStr = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().split('T')[0]; };
-  const filtered = allBookings.filter(b => {
+  return allBookings.filter(b => {
     if (statusF && b.status !== statusF) return false;
     if (dateF === 'today'     && b.date !== todayStr)     return false;
     if (dateF === 'yesterday' && b.date !== yesterdayStr) return false;
@@ -776,21 +780,29 @@ function renderBookings() {
     if (q && !b.ref.toLowerCase().includes(q) && !b.name.toLowerCase().includes(q) && !(b.phone||'').includes(q)) return false;
     return true;
   });
+}
+
+function renderBookings() {
+  const filtered = getFilteredBookings();
   const tbody = document.getElementById('bookings-tbody');
   if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="10" class="empty">No bookings found.</td></tr>`; return; }
+  const now = Date.now();
   tbody.innerHTML = filtered.map(b => {
     const hasProof = !!b.proof_url;
-    const canPay = b.status === 'Payment Submitted';
-    const canCancel = b.status !== 'Cancelled' && b.status !== 'Paid';
+    const canConfirm = b.status === 'Pending Verification';
+    const canCancel  = b.status !== 'Cancelled' && b.status !== 'Confirmed' && b.status !== 'Expired';
+    const isOverdue  = b.status === 'Awaiting Payment' && b.created_at && (now - new Date(b.created_at).getTime()) > 10 * 60 * 1000;
     let actions = '';
-    if (canPay) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Paid')" style="padding:4px 9px;font-size:11px">Mark paid</button>`;
-    if (b.status === 'Paid') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Payment Submitted')" style="padding:4px 9px;font-size:11px">Undo paid</button>`;
+    if (canConfirm) actions += `<button class="action-btn btn-paid" onclick="updateBooking('${b.id}','Confirmed')" style="padding:4px 9px;font-size:11px">Confirm</button>`;
+    if (b.status === 'Confirmed') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Pending Verification')" style="padding:4px 9px;font-size:11px">Undo</button>`;
+    if (b.status === 'Awaiting Payment') actions += `<button class="action-btn btn-unverify" onclick="updateBooking('${b.id}','Expired')" style="padding:4px 9px;font-size:11px">Expire</button>`;
     if (canCancel) actions += `<button class="action-btn btn-cancel" onclick="updateBooking('${b.id}','Cancelled')" style="padding:4px 9px;font-size:11px">Cancel</button>`;
     const proofIcon = hasProof
       ? `<button onclick="openProofModal('${b.id}')" title="View proof" style="margin-left:5px;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;color:var(--text-muted);vertical-align:middle;line-height:1" onmouseover="this.style.color='var(--green-dark)'" onmouseout="this.style.color='var(--text-muted)'"><i class="ti ti-photo" style="font-size:13px"></i></button>`
       : '';
+    const overdueTag = isOverdue ? `<span style="margin-left:5px;font-size:10px;font-weight:600;color:#c2410c;background:#ffedd5;border-radius:4px;padding:1px 5px;vertical-align:middle">Overdue</span>` : '';
     return `
-    <tr${b.status === 'Payment Submitted' ? ' class="needs-action"' : ''}>
+    <tr${b.status === 'Pending Verification' ? ' class="needs-action"' : ''}>
       <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(b.ref)}</td>
       <td>${esc(b.name)}<br><span style="font-size:11px;color:var(--text-muted)">${esc(b.phone)}</span></td>
       <td style="text-align:center;font-weight:600">Court ${b.court}</td>
@@ -798,7 +810,7 @@ function renderBookings() {
       <td style="font-size:12px">${esc(b.time_label)}</td>
       <td><span style="font-size:12px;text-transform:capitalize">${esc(b.match_type)}</span></td>
       <td style="font-weight:500">Rs. ${b.amount.toLocaleString()}</td>
-      <td><span style="white-space:nowrap">${statusBadge(b.status)}${proofIcon}</span></td>
+      <td><span style="white-space:nowrap">${statusBadge(b.status)}${overdueTag}${proofIcon}</span></td>
       <td style="text-align:center">${b.ai_checked
         ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:2px 7px"><i class="ti ti-robot" style="font-size:11px"></i>Checked</span>'
         : '<span style="font-size:11px;color:var(--text-faint)">—</span>'
@@ -839,9 +851,9 @@ function openProofModal(id) {
   const payBtn = document.getElementById('proof-modal-pay-btn');
   const cancelBtn = document.getElementById('proof-modal-cancel-btn');
   const unpayBtn = document.getElementById('proof-modal-unpay-btn');
-  payBtn.style.display = b.status === 'Payment Submitted' ? 'inline-flex' : 'none';
-  unpayBtn.style.display = b.status === 'Paid' ? 'inline-flex' : 'none';
-  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Paid') ? 'inline-flex' : 'none';
+  payBtn.style.display    = b.status === 'Pending Verification' ? 'inline-flex' : 'none';
+  unpayBtn.style.display  = b.status === 'Confirmed' ? 'inline-flex' : 'none';
+  cancelBtn.style.display = (b.status !== 'Cancelled' && b.status !== 'Confirmed' && b.status !== 'Expired') ? 'inline-flex' : 'none';
   document.getElementById('proof-modal').classList.add('open');
 }
 
@@ -926,7 +938,7 @@ function openAddBookingModal() {
   document.getElementById('ab-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('ab-court').value = '1';
   document.getElementById('ab-type').value = 'singles';
-  document.getElementById('ab-status').value = 'Pending Payment';
+  document.getElementById('ab-status').value = 'Awaiting Payment';
   document.getElementById('ab-error').style.display = 'none';
   // Populate start-time select from settings hours
   const from = allSettings.open_from ?? 6;
@@ -1001,7 +1013,13 @@ function doExport(days) {
 }
 
 function statusBadge(s) {
-  const map = { 'Pending Payment':'badge-pending', 'Payment Submitted':'badge-submitted', 'Paid':'badge-paid', 'Cancelled':'badge-cancelled' };
+  const map = {
+    'Awaiting Payment':    'badge-pending',
+    'Pending Verification':'badge-submitted',
+    'Confirmed':           'badge-paid',
+    'Cancelled':           'badge-cancelled',
+    'Expired':             'badge-cancelled',
+  };
   return `<span class="badge ${map[s]||''}">${esc(s)}</span>`;
 }
 

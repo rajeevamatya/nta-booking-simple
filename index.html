@@ -743,7 +743,7 @@
         </div>
         <div style="margin-bottom:1.25rem">
           <div id="paid-status-badge" style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#dbeafe;color:#1e40af">
-            <i class="ti ti-clock" style="font-size:13px"></i> Payment Submitted — awaiting review
+            <i class="ti ti-clock" style="font-size:13px"></i> Pending verification
           </div>
           <div style="margin-top:10px">
             <button id="refresh-status-btn" onclick="refreshBookingStatus()" style="background:none;border:1px solid var(--border-mid);color:var(--text-muted);padding:7px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:background .15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
@@ -946,7 +946,7 @@ async function fetchBookings() {
   sec.style.display='block';
   list.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text-faint);font-size:13px"><i class="ti ti-loader-2 spin"></i> Loading availability…</div>';
   try {
-    const data=await sbGet(`bookings?date=eq.${S.date}&status=neq.Cancelled&select=court,slots`);
+    const data=await sbGet(`bookings?date=eq.${S.date}&status=not.in.(Cancelled,Expired)&select=court,slots`);
     S.bookings=data||[];
   } catch(e) { S.bookings=[]; }
 }
@@ -1186,7 +1186,7 @@ async function submitPayment() {
       });
       if (up.ok) {
         const proofUrl = `${SUPABASE_URL}/storage/v1/object/public/payment-proofs/${path}`;
-        await sbPatch(`bookings?ref=eq.${encodeURIComponent(S.ref)}`, { status:'Payment Submitted', proof_url:proofUrl });
+        await sbPatch(`bookings?ref=eq.${encodeURIComponent(S.ref)}`, { status:'Pending Verification', proof_url:proofUrl });
       }
     }
   } catch(e) { console.warn('Upload failed:',e); }
@@ -1305,21 +1305,30 @@ function updatePaidStatusUI(status) {
   const icon = document.getElementById('paid-ring-icon');
   const title = document.getElementById('paid-title');
   const sub = document.getElementById('paid-subtitle');
-  if (status === 'Paid') {
+  if (status === 'Confirmed') {
     badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#dcfce7;color:#166534';
-    badge.innerHTML = '<i class="ti ti-circle-check" style="font-size:13px"></i> Payment confirmed!';
+    badge.innerHTML = '<i class="ti ti-circle-check" style="font-size:13px"></i> Booking confirmed!';
     ring.style.background = '#dcfce7'; ring.style.borderColor = '#86efac';
     icon.style.color = '#16a34a';
-    title.textContent = 'Payment confirmed!';
+    title.textContent = 'Booking confirmed!';
     sub.textContent = 'Your court booking is confirmed. See you on the court! 🎾';
     document.getElementById('replace-proof-section').style.display = 'none';
     document.getElementById('refresh-status-btn').style.display = 'none';
-  } else if (status === 'Payment Submitted') {
+  } else if (status === 'Pending Verification') {
     badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#dbeafe;color:#1e40af';
-    badge.innerHTML = '<i class="ti ti-clock" style="font-size:13px"></i> Payment Submitted — awaiting review';
-  } else if (status === 'Pending Payment') {
+    badge.innerHTML = '<i class="ti ti-clock" style="font-size:13px"></i> Pending verification';
+  } else if (status === 'Awaiting Payment') {
     badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#fef9c3;color:#854d0e';
-    badge.innerHTML = '<i class="ti ti-clock" style="font-size:13px"></i> Pending Payment';
+    badge.innerHTML = '<i class="ti ti-clock" style="font-size:13px"></i> Awaiting payment';
+  } else if (status === 'Expired') {
+    badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#f1f5f9;color:#6b7280';
+    badge.innerHTML = '<i class="ti ti-clock-off" style="font-size:13px"></i> Booking expired';
+    ring.style.background = '#f1f5f9'; ring.style.borderColor = '#cbd5e1';
+    icon.className = 'ti ti-x'; icon.style.color = '#9ca3af';
+    title.textContent = 'Booking expired';
+    sub.textContent = 'Payment was not received in time. Please make a new booking.';
+    document.getElementById('replace-proof-section').style.display = 'none';
+    document.getElementById('refresh-status-btn').style.display = 'none';
   } else if (status === 'Cancelled') {
     badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;background:#f1f5f9;color:#6b7280';
     badge.innerHTML = '<i class="ti ti-x" style="font-size:13px"></i> Booking cancelled';
