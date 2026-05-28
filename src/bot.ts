@@ -116,7 +116,7 @@ async function getHistory(phone: string, limit = 10): Promise<CoreMessage[]> {
     .from('conversation_history')
     .select('role, content, metadata')
     .eq('phone', phone)
-    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit);
 
   if (!data?.length) return [];
