@@ -92,6 +92,12 @@ function getDiscount() {
   if (S.user.playerType === 'coach')  return CONFIG.discountCoach;
   return 0;
 }
+function hasNightSlots() {
+  return CONFIG.nightPremium > 0 && S.slots.some(h => h >= CONFIG.nightStarts);
+}
+function nightNoteText() {
+  return `<i class="ti ti-moon" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Includes night rate (+${CONFIG.nightPremium}%) for hours after ${fmt12(CONFIG.nightStarts)}`;
+}
 function getPrice() {
   const baseRate = S.matchType === 'singles' ? CONFIG.priceSingles : CONFIG.priceDoubles;
   const disc = getDiscount();
@@ -323,6 +329,8 @@ function selectCourt(el,c) {
   document.getElementById('sum-dur').textContent=S.slots.length===2?'2 hours':'1 hour';
   document.getElementById('sum-type').textContent=S.matchType==='singles'?'Singles':'Doubles';
   document.getElementById('sum-price').textContent='Rs. '+getPrice().toLocaleString();
+  const snn = document.getElementById('sum-night-note');
+  if (hasNightSlots()) { snn.innerHTML = nightNoteText(); snn.style.display='block'; } else { snn.style.display='none'; }
   document.getElementById('select-hint').style.display='none';
   document.getElementById('confirm-bar').style.display='block';
 }
@@ -366,6 +374,8 @@ async function confirmBooking() {
   document.getElementById('conf-player').textContent=S.user.name;
   document.getElementById('conf-type').textContent=S.matchType==='singles'?'Singles':'Doubles';
   document.getElementById('conf-price').textContent='Rs. '+getPrice().toLocaleString();
+  const cnn = document.getElementById('conf-night-note');
+  if (hasNightSlots()) { cnn.innerHTML = nightNoteText(); cnn.style.display='block'; } else { cnn.style.display='none'; }
   document.getElementById('upload-area').className='upload-area';
   document.getElementById('upload-icon-el').innerHTML='<i class="ti ti-photo-up"></i>';
   document.getElementById('upload-text-el').innerHTML='<strong>Tap to upload</strong> screenshot or photo<br>of your payment';
