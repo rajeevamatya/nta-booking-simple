@@ -1,6 +1,6 @@
 # NTA Court Booking
 
-Online court booking system for **Nepal Tennis Association**. Members book via the web app or WhatsApp — both channels share one database. An admin panel verifies payments and manages members.
+Online court booking system for **Nepal Tennis Association**. Members book via the web app; an admin panel verifies payments and manages members. A WhatsApp bot (`api/whatsapp.ts`) is maintained but dormant.
 
 ---
 
@@ -10,7 +10,7 @@ Online court booking system for **Nepal Tennis Association**. Members book via t
 |------|-----|
 | Booking app | `https://nta-booking.vercel.app/` |
 | Admin panel | `https://nta-booking.vercel.app/admin` |
-| WhatsApp webhook | `https://nta-booking.vercel.app/api/webhook/whatsapp` |
+| WhatsApp webhook | `https://nta-booking.vercel.app/api/whatsapp` |
 
 ---
 
@@ -18,16 +18,17 @@ Online court booking system for **Nepal Tennis Association**. Members book via t
 
 | Layer | Choice |
 |-------|--------|
-| Frontend | Vanilla HTML + CSS + JavaScript (no build step) |
-| WhatsApp bot | TypeScript Vercel Function, Vercel AI SDK v4, OpenAI GPT-4.1-mini |
+| Frontend | Vite + Vanilla HTML / CSS / JS |
+| API functions | TypeScript Vercel Functions |
+| AI (payment check) | Vercel AI SDK, OpenAI GPT-4.1-mini |
 | Hosting | Vercel (Fluid Compute) |
 | Database | Supabase (Postgres via REST API) |
 | Auth | Supabase Auth (email + password, admin only) |
 | File storage | Supabase Storage — public bucket `payment-proofs` |
-| WhatsApp channel | Twilio |
+| WhatsApp channel | Twilio (dormant) |
 | Phone normalisation | libphonenumber-js (E.164 everywhere) |
 | Icons | Tabler Icons (CDN) |
-| Fonts | DM Sans + DM Serif Display (Google Fonts CDN) |
+| Fonts | DM Sans (Google Fonts CDN) |
 
 ---
 
@@ -38,21 +39,27 @@ nta/
 ├── index.html                    # Member-facing booking app
 ├── admin.html                    # Admin panel (login-gated)
 ├── favicon.svg
-├── vercel.json                   # URL rewrites
-├── package.json                  # Bot dependencies
+├── vite.config.js                # Multi-page Vite build
+├── vercel.json                   # Build config + URL rewrites
 ├── tsconfig.json
-├── api/
-│   └── webhook/
-│       └── whatsapp.ts           # Vercel Function — Twilio webhook entry point
+├── package.json
 ├── src/
-│   └── bot.ts                    # All bot logic (~600 lines)
+│   ├── main.js                   # Booking app logic
+│   └── admin.js                  # Admin panel logic
+├── api/
+│   ├── check-payment.ts          # AI payment verification (admin panel)
+│   └── whatsapp.ts               # WhatsApp bot (dormant)
 └── migrations/
     ├── 001_create_members.sql
     ├── 002_create_bookings.sql
     ├── 003_create_settings.sql
     ├── 004_add_ai_checked.sql
     ├── 005_rename_statuses.sql
-    └── 006_add_conversation_history.sql
+    ├── 006_add_conversation_history.sql
+    ├── 007_add_ai_check_details.sql
+    ├── 008_add_player_type.sql
+    ├── 009_add_discount.sql
+    └── 010_split_discounts_night_pricing.sql
 ```
 
 ---
@@ -69,32 +76,32 @@ Run migrations **in order** via the Supabase SQL Editor. All files are idempoten
 phone         TEXT        PRIMARY KEY              -- E.164 format, e.g. +9779865457921
 name          TEXT        NOT NULL
 nationality   TEXT        NOT NULL DEFAULT 'np'   -- 'np' | 'intl'
-is_ranked     BOOLEAN     NOT NULL DEFAULT false
+player_type   TEXT        NOT NULL DEFAULT 'recreational'  -- 'recreational' | 'ranked' | 'coach'
+is_ranked     BOOLEAN     NOT NULL DEFAULT false  -- legacy, kept for backcompat
 is_verified   BOOLEAN     NOT NULL DEFAULT false
 registered_at TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
 RLS: `anon` can INSERT and SELECT. `authenticated` (admin) has full access.
 
-> **Important:** Phone numbers are stored in E.164 format (`+977XXXXXXXXXX`). Run the normalisation SQL below if upgrading from a pre-E.164 install.
-
 #### `bookings`
 
 ```sql
-id          UUID        PRIMARY KEY DEFAULT gen_random_uuid()
-ref         TEXT        NOT NULL UNIQUE            -- e.g. NTA-A1B2-C3D
-phone       TEXT        NOT NULL                   -- E.164
-name        TEXT        NOT NULL
-court       INTEGER     NOT NULL CHECK (1–6)
-date        DATE        NOT NULL
-time_label  TEXT        NOT NULL                   -- e.g. "7:00 AM – 9:00 AM"
-slots       INTEGER[]   NOT NULL                   -- e.g. {7,8}
-match_type  TEXT        NOT NULL CHECK ('singles'|'doubles')
-amount      INTEGER     NOT NULL
-status      TEXT        NOT NULL DEFAULT 'Awaiting Payment'
-proof_url   TEXT
-ai_checked  BOOLEAN     NOT NULL DEFAULT false
-created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+id               UUID        PRIMARY KEY DEFAULT gen_random_uuid()
+ref              TEXT        NOT NULL UNIQUE            -- e.g. NTA-A1B2-C3D
+phone            TEXT        NOT NULL                   -- E.164
+name             TEXT        NOT NULL
+court            INTEGER     NOT NULL CHECK (1–6)
+date             DATE        NOT NULL
+time_label       TEXT        NOT NULL                   -- e.g. "7:00 AM – 9:00 AM"
+slots            INTEGER[]   NOT NULL                   -- e.g. {7,8}
+match_type       TEXT        NOT NULL CHECK ('singles'|'doubles')
+amount           INTEGER     NOT NULL
+status           TEXT        NOT NULL DEFAULT 'Awaiting Payment'
+proof_url        TEXT
+ai_checked       BOOLEAN     NOT NULL DEFAULT false
+ai_check_details JSONB
+created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
 Valid statuses: `Awaiting Payment` → `Pending Verification` → `Confirmed` / `Cancelled`.
@@ -111,6 +118,10 @@ open_from       INT     NOT NULL DEFAULT 6
 open_to         INT     NOT NULL DEFAULT 19
 price_singles   INT     NOT NULL DEFAULT 400     -- NPR per hour
 price_doubles   INT     NOT NULL DEFAULT 600     -- NPR per hour
+discount_ranked INT     NOT NULL DEFAULT 25      -- % off for ranked players
+discount_coach  INT     NOT NULL DEFAULT 25      -- % off for coaches
+night_premium   INT     NOT NULL DEFAULT 25      -- % markup after night_starts
+night_starts    INT     NOT NULL DEFAULT 18      -- hour when night pricing begins
 whatsapp        TEXT    DEFAULT '9779841044844'
 qr_url          TEXT
 closure_from    DATE
@@ -154,70 +165,35 @@ CREATE POLICY "auth_all_proofs" ON storage.objects
 
 ## WhatsApp Bot
 
-### How it works
+The bot (`api/whatsapp.ts`) is a single self-contained Vercel Function. It handles Twilio webhooks, runs an agentic loop (up to 7 steps) with OpenAI GPT-4.1-mini, and replies via TwiML. It is currently dormant — to remove it entirely, delete `api/whatsapp.ts`.
 
-The bot is a single Vercel Function (`api/webhook/whatsapp.ts`) backed by `src/bot.ts`. When a member sends a WhatsApp message, Twilio posts to the webhook; the bot runs an agentic loop (up to 7 steps) using OpenAI GPT-4.1-mini with tool calling, then replies via TwiML.
+**Bot capabilities:** check availability, create/cancel bookings, list upcoming bookings, process payment screenshots.
 
-**Bot capabilities:**
-- Check court availability for a date and time
-- Create bookings (confirmed members only)
-- List upcoming bookings
-- Cancel a booking by ref
-- Check booking status
-- Process a payment screenshot — downloads the image, uploads it to Supabase Storage, runs vision extraction to read the amount, and marks the booking as `Pending Verification`
-
-**Access control:** Only members with `is_verified = true` can use the bot. Unregistered numbers get a registration prompt; unverified members get a pending-verification message. Member registration happens through the web app or admin panel — the bot does not auto-create members.
-
-**Conversation memory:** Each turn's messages (user, assistant tool calls, tool results) are saved to `conversation_history` so the bot remembers context across messages.
+**Access control:** verified members only. Registration is via the web app or admin panel.
 
 ### Twilio Setup
 
-1. Create a Twilio account and enable the **WhatsApp Sandbox** (or a production sender).
-2. Set the webhook URL in Twilio → Messaging → Sandbox Settings → **When a message comes in**:
-   ```
-   https://nta-booking.vercel.app/api/webhook/whatsapp
-   ```
-   Method: `HTTP POST`
-
-### Environment Variables
-
-Set these in Vercel (Project → Settings → Environment Variables) **and** in `.env.local` for local dev:
-
+Set the webhook in Twilio → Messaging → Sandbox Settings → **When a message comes in**:
 ```
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=   # service role — bypasses RLS for bot writes
-OPENAI_API_KEY=
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_WHATSAPP_NUMBER=      # e.g. whatsapp:+14155238886
+https://nta-booking.vercel.app/api/whatsapp
 ```
-
-> The `service_role` key is only used server-side (inside the Vercel Function). Never put it in frontend HTML.
+Method: `HTTP POST`
 
 ---
 
-## Phone Number Format
+## Environment Variables
 
-All phone numbers are stored in **E.164 format** (`+9779865457921`). The web app builds E.164 directly from a country code selector (default +977 Nepal). The bot normalises Twilio's incoming format via `libphonenumber-js`.
+Set in Vercel (Project → Settings → Environment Variables) and in `.env.local` for local dev:
 
-### One-time normalisation SQL (existing installs)
-
-Run this in the Supabase SQL Editor to migrate local-format numbers to E.164:
-
-```sql
--- Step 1: Remove E.164 ghost duplicates where the local version also exists
-DELETE FROM members
-WHERE phone ~ '^\+977[0-9]{10}$'
-  AND EXISTS (
-    SELECT 1 FROM members m2
-    WHERE m2.phone = substr(members.phone, 5)
-  );
-
--- Step 2: Normalize local Nepal numbers → E.164 across all tables
-UPDATE members SET phone = '+977' || phone WHERE phone ~ '^9[6-8][0-9]{8}$';
-UPDATE bookings SET phone = '+977' || phone WHERE phone ~ '^9[6-8][0-9]{8}$';
-UPDATE conversation_history SET phone = '+977' || phone WHERE phone ~ '^9[6-8][0-9]{8}$';
 ```
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=   # server-side only — bypasses RLS
+OPENAI_API_KEY=
+TWILIO_ACCOUNT_SID=          # only needed if bot is active
+TWILIO_AUTH_TOKEN=           # only needed if bot is active
+```
+
+> The `service_role` key is only used server-side (Vercel Functions). Never put it in frontend HTML.
 
 ---
 
@@ -226,21 +202,20 @@ UPDATE conversation_history SET phone = '+977' || phone WHERE phone ~ '^9[6-8][0
 ```
 Enter country code + phone number
     │
-    ├── new number ──→ Register (name, nationality, ranked?) ──→ continue
+    ├── new number ──→ Register (name, nationality, player type) ──→ continue
     │
     ▼ known member
 Select date (Today / Tomorrow)
     │
 Select time slot(s) — up to 2 consecutive hours
     │
-Select court (1–6, greyed out if already booked)
+Select court (1–6, greyed out if booked)
     │
 Select match type (Singles / Doubles)
     │
 Payment screen
-    │  • Amount shown (from settings)
+    │  • Amount shown (base rate + night premium if applicable; discount if ranked/coach)
     │  • QR code (if uploaded in admin)
-    │  • WhatsApp link to NTA staff
     │  • Upload payment screenshot
     │
 Confirmation screen
@@ -249,47 +224,27 @@ Confirmation screen
        • Re-upload proof option
 ```
 
-## User Flow (WhatsApp)
-
-```
-Member sends any message
-    │
-    ├── not registered ──→ "Register via the NTA website."
-    ├── not verified   ──→ "Contact admin to verify your account."
-    │
-    ▼ verified member
-Bot greets by name, explains how to book
-    │
-"Book court 2 for singles tomorrow at 7am, 1 hour"
-    │
-Bot checks availability → confirms details → creates booking → sends ref + payment instructions
-    │
-Member sends payment screenshot
-    │
-Bot processes proof → uploads to Supabase Storage → marks Pending Verification
-    │
-Admin confirms in admin panel → member can check status via bot or web app
-```
-
 ---
 
 ## Admin Panel
+
+Sidebar navigation with three sections.
 
 ### Bookings Tab *(default)*
 
 - Auto-refresh every 60 seconds; red badge for rows needing action
 - Search by ref, name, or phone; filter by status and date range
-- Stats bar reflects current filter
-- **Overdue tag** on Awaiting Payment rows older than 10 minutes
-- **Proof modal** — full-size image with Confirm / Undo / Cancel actions
-- **AI checked badge** — green badge when `ai_checked = true` (set automatically when the bot processes a payment screenshot)
-- Export CSV (30 days / 90 days / All time)
+- Bulk confirm or cancel via row checkboxes + bulk action bar
+- Overdue "Awaiting Payment" rows shown with an orange badge (>10 min old)
+- View proof / Upload proof buttons in the Actions column
+- Export CSV + optional ZIP of payment proof images (30 days / 90 days / All time)
 - Add Booking manually (walk-in / phone)
 
 ### Members Tab
 
-- Lists all members with name, phone, nationality, ranked, and verified status
+- Lists all members with name, phone, nationality, player type, and verified status
 - Toggle verified / unverified with one click
+- Edit name, nationality, and player type inline
 - Red badge for unverified count
 - Add Member manually
 
@@ -297,23 +252,30 @@ Admin confirms in admin panel → member can check status via bot or web app
 
 | Card | Fields |
 |------|--------|
-| Opening Hours | Open from / Open to (hourly) |
+| Opening Hours | Open from / Open to |
 | Closure / Maintenance | From date, To date, message |
-| Pricing | Singles NPR/hr, Doubles NPR/hr |
+| Pricing | Singles NPR/hr, Doubles NPR/hr, night premium %, night starts at |
+| Member Discounts | Ranked player %, Coach % |
 | Contact & Payment | WhatsApp number, QR code upload |
 
 ---
 
 ## Deployment
 
-1. Push to GitHub → import at [vercel.com/new](https://vercel.com/new) — no build command needed.
-2. Add the six environment variables (see WhatsApp Bot section above).
-3. `vercel.json` rewrites and the `api/` function are picked up automatically.
+```bash
+npm run dev      # local dev with HMR
+npm run build    # production build → dist/
+npm run preview  # preview production build locally
+```
+
+1. Push to GitHub → import at [vercel.com/new](https://vercel.com/new).
+2. Vercel auto-detects Vite; build command is `npm run build`, output directory is `dist/`.
+3. Add environment variables (see above).
 
 ### URL Routing (`vercel.json`)
 
 - `/admin` → `admin.html`
-- `/api/*` → Vercel Functions (bot webhook)
+- `/api/*` → Vercel Functions
 - Everything else → `index.html`
 
 ---
@@ -321,23 +283,14 @@ Admin confirms in admin panel → member can check status via bot or web app
 ## First-Time Setup Checklist
 
 - [ ] Create a Supabase project
-- [ ] Run `migrations/001` through `006` in the SQL Editor (in order)
+- [ ] Run `migrations/001` through `010` in the SQL Editor (in order)
 - [ ] Create the `payment-proofs` storage bucket (public) and apply the four storage policies
 - [ ] Create an admin user via Supabase Auth → Users → Invite
-- [ ] Update `SUPABASE_URL` and `SUPABASE_KEY` in both `index.html` and `admin.html`
-- [ ] Add all six environment variables in Vercel project settings
+- [ ] Update `SUPABASE_URL` and `SUPABASE_KEY` constants in `index.html` and `admin.html`
+- [ ] Add environment variables in Vercel project settings
 - [ ] Deploy to Vercel
-- [ ] Configure Twilio webhook URL to `https://<domain>/api/webhook/whatsapp`
-- [ ] Log in to `/admin` → Settings → set prices, opening hours, WhatsApp number, QR code
-- [ ] Add and verify at least one member before testing the WhatsApp bot
-
-## Upgrading an Existing Install
-
-- [ ] Run `migrations/004` — adds `ai_checked` column
-- [ ] Run `migrations/005` — renames statuses, adds CHECK constraint
-- [ ] Run `migrations/006` — adds `conversation_history` table
-- [ ] Run the phone normalisation SQL above (E.164 migration)
-- [ ] Add the six bot environment variables in Vercel
+- [ ] Log in to `/admin` → Settings → set prices, opening hours, discounts, WhatsApp number, QR code
+- [ ] Add and verify members before opening bookings
 
 ---
 
@@ -346,15 +299,14 @@ Admin confirms in admin panel → member can check status via bot or web app
 | Key | Where to find | Safe to expose? |
 |-----|---------------|-----------------|
 | Project URL | Settings → API → Project URL | Yes |
-| `anon` key | Settings → API → anon | **Yes** — used in frontend HTML |
-| `service_role` key | Settings → API → service_role | **No** — server-side only (bot) |
+| `anon` / publishable key | Settings → API → anon | **Yes** — used in frontend HTML |
+| `service_role` key | Settings → API → service_role | **No** — server-side only |
 
 ---
 
 ## Known Limitations
 
-- No double-booking prevention at the DB level — two simultaneous bookings for the same court and slot are possible. Admin resolves conflicts manually.
-- No push notifications — members check status by revisiting the confirmation screen or asking the bot.
+- No double-booking prevention at the DB level — two simultaneous bookings for the same court and slot are theoretically possible. Admin resolves conflicts manually.
+- No push notifications — members check status by revisiting the confirmation screen.
 - Closure banner is informational only — does not block bookings.
 - Single admin account recommended — no per-admin audit trail.
-- WhatsApp bot conversation history is stored indefinitely — no automatic pruning.

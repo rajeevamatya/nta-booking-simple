@@ -35,23 +35,26 @@
   .err { font-size:12px;color:#dc2626;margin-top:5px;display:none; }
 
   #main { display:none; }
-  .topbar { background:var(--green-dark);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100; }
-  .topbar-logo { display:flex;align-items:center;gap:10px; }
-  .topbar-logo .logo-mark { width:32px;height:32px; }
-  .topbar-logo .logo-mark i { font-size:17px; }
-  .topbar-title { font-size:15px;font-weight:600;color:#fff; }
-  .topbar-sub { font-size:11px;color:rgba(255,255,255,.5); }
-  .topbar-right { display:flex;align-items:center;gap:12px; }
-  .topbar-email { font-size:12px;color:rgba(255,255,255,.55); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .btn-logout { background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);padding:7px 14px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px; }
-  .btn-logout:hover { background:rgba(255,255,255,.18); }
+  .app-layout { display:flex; min-height:100vh; }
 
-  .container { max-width:1100px;margin:0 auto;padding:1.5rem; }
+  .sidebar { width:220px;background:var(--green-dark);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0; }
+  .sidebar-brand { display:flex;align-items:center;gap:10px;padding:1.25rem 1.1rem 1rem;border-bottom:1px solid rgba(255,255,255,.08); }
+  .sidebar-brand .logo-mark { width:32px;height:32px;flex-shrink:0; }
+  .sidebar-brand .logo-mark i { font-size:17px; }
+  .sidebar-title { font-size:14px;font-weight:600;color:#fff; }
+  .sidebar-sub { font-size:11px;color:rgba(255,255,255,.45);margin-top:1px; }
+  .sidebar-nav { flex:1;padding:.75rem .6rem;display:flex;flex-direction:column;gap:2px; }
+  .nav-item { width:100%;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:rgba(255,255,255,.65);cursor:pointer;border:none;background:transparent;font-family:'DM Sans',sans-serif;text-align:left;transition:all .15s;position:relative; }
+  .nav-item:hover { background:rgba(255,255,255,.08);color:#fff; }
+  .nav-item.active { background:rgba(255,255,255,.14);color:#fff; }
+  .nav-item i { font-size:16px;flex-shrink:0; }
+  .nav-badge { background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto; }
+  .sidebar-foot { padding:.75rem .6rem 1rem;border-top:1px solid rgba(255,255,255,.08); }
+  .sidebar-email { font-size:11px;color:rgba(255,255,255,.45);padding:0 10px;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .btn-logout { width:100%;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;border:none;background:rgba(255,255,255,.08);color:rgba(255,255,255,.65);font-family:'DM Sans',sans-serif;transition:all .15s; }
+  .btn-logout:hover { background:rgba(255,255,255,.15);color:#fff; }
 
-  .tabs { display:flex;gap:4px;background:var(--surface);border-radius:var(--radius);padding:5px;margin-bottom:1.25rem;box-shadow:var(--shadow);width:fit-content; }
-  .tab { padding:8px 22px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;border:none;background:transparent;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:6px;transition:all .15s; }
-  .tab.active { background:var(--green);color:#fff; }
-  .tab:not(.active):hover { background:var(--green-light);color:var(--green-dark); }
+  .main-content { flex:1;padding:1.5rem;min-width:0;overflow:auto; }
 
   .toolbar { display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap; }
   .toolbar input { border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;min-width:200px; }
@@ -180,27 +183,27 @@
 </div>
 
 <div id="main">
-  <div class="topbar">
-    <div class="topbar-logo">
+  <div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
       <div class="logo-mark"><i class="ti ti-tournament"></i></div>
       <div>
-        <div class="topbar-title">NTA Admin</div>
-        <div class="topbar-sub">Nepal Tennis Association</div>
+        <div class="sidebar-title">NTA Admin</div>
+        <div class="sidebar-sub">Nepal Tennis Association</div>
       </div>
     </div>
-    <div class="topbar-right">
-      <span id="admin-email" class="topbar-email"></span>
+    <nav class="sidebar-nav">
+      <button class="nav-item" data-tab="members" onclick="showTab('members')"><i class="ti ti-users"></i> Members <span id="unverified-badge" class="nav-badge" style="display:none"></span></button>
+      <button class="nav-item active" data-tab="bookings" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" class="nav-badge" style="display:none"></span></button>
+      <button class="nav-item" data-tab="settings" onclick="showTab('settings')"><i class="ti ti-settings"></i> Settings</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div id="admin-email" class="sidebar-email"></div>
       <button class="btn-logout" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
     </div>
-  </div>
+  </aside>
 
-  <div class="container">
-    <div class="tabs">
-      <button class="tab" onclick="showTab('members')"><i class="ti ti-users"></i> Members <span id="unverified-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
-      <button class="tab active" onclick="showTab('bookings')"><i class="ti ti-calendar"></i> Bookings <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;vertical-align:1px"></span></button>
-      <button class="tab" onclick="showTab('settings')"><i class="ti ti-settings"></i> Settings</button>
-    </div>
-
+  <div class="main-content">
     <div id="tab-members" style="display:none">
       <div id="members-stats" class="stat-row"></div>
       <div class="toolbar">
@@ -388,6 +391,8 @@
 
     </div>
   </div>
+  </div><!-- /.main-content -->
+  </div><!-- /.app-layout -->
 </div>
 
 <!-- ── PROOF MODAL ── -->

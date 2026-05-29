@@ -155,8 +155,8 @@ function showTab(tab) {
   ['members','bookings','settings'].forEach(t =>
     document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none'
   );
-  document.querySelectorAll('.tab').forEach((t, i) =>
-    t.classList.toggle('active', ['members','bookings','settings'][i] === tab)
+  document.querySelectorAll('.nav-item[data-tab]').forEach(el =>
+    el.classList.toggle('active', el.dataset.tab === tab)
   );
 }
 
