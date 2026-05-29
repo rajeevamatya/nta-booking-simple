@@ -1,9 +1,116 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateText, tool, type CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 import { z } from 'zod';
-import { runPaymentCheck } from '../lib/checkPayment';
+
+// ── Payment check ─────────────────────────────────────────────────────────────
+
+type CheckDetails = {
+  amount: { ok: boolean; extracted: number | null; expected: number };
+  date: { ok: boolean; extracted: string | null; bookingCreated: string };
+  receiver: { ok: boolean; extracted: string | null };
+  sender: { ok: boolean; extracted: string | null; member: string };
+};
+
+type CheckResult = {
+  aiChecked: boolean;
+  aiCheckDetails: CheckDetails;
+  paymentMethod: string;
+  detectedAmount: number | null;
+};
+
+const EXTRACTION_PROMPT = [
+  'Extract payment info from this receipt screenshot. Return JSON only, no markdown:',
+  '{',
+  '  "amount": number | null,',
+  '  "transactionId": string | null,',
+  '  "paymentMethod": "esewa" | "fonepay" | "khalti" | "bank" | "unknown",',
+  '  "senderPhone": string | null,',
+  '  "receiverName": string | null,',
+  '  "transactionDate": "YYYY-MM-DD" | null',
+  '}',
+  "Notes: senderPhone is the payer's number. receiverName may be partially starred (e.g. \"***** Association\").",
+].join('\n');
+
+async function runPaymentCheck(
+  imageBuffer: Buffer,
+  mimeType: string,
+  expectedAmount: number,
+  bookingCreatedAt: string,
+  memberPhone: string,
+): Promise<CheckResult> {
+  const { text: raw } = await generateText({
+    model: openai('gpt-4.1-mini'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: EXTRACTION_PROMPT },
+          { type: 'image', image: imageBuffer, mimeType },
+        ],
+      },
+    ],
+  });
+
+  type Extracted = {
+    amount: number | null;
+    transactionId: string | null;
+    paymentMethod: string;
+    senderPhone: string | null;
+    receiverName: string | null;
+    transactionDate: string | null;
+  };
+
+  let extracted: Extracted = {
+    amount: null,
+    transactionId: null,
+    paymentMethod: 'unknown',
+    senderPhone: null,
+    receiverName: null,
+    transactionDate: null,
+  };
+  try {
+    const json = raw.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+    extracted = { ...extracted, ...JSON.parse(json) };
+  } catch {
+    // continue with defaults
+  }
+
+  const amountOk =
+    extracted.amount !== null &&
+    extracted.amount >= expectedAmount &&
+    extracted.amount <= expectedAmount + 50;
+
+  const dateOk =
+    extracted.transactionDate !== null &&
+    extracted.transactionDate >= bookingCreatedAt;
+
+  const receiverRaw = (extracted.receiverName ?? '').toLowerCase();
+  const receiverOk =
+    receiverRaw.includes('tennis') ||
+    receiverRaw.includes('association') ||
+    receiverRaw.includes('nta');
+
+  const normalizedSender = extracted.senderPhone
+    ? extracted.senderPhone.replace(/\D/g, '').slice(-10)
+    : null;
+  const normalizedMember = memberPhone.replace(/\D/g, '').slice(-10);
+  const senderOk = normalizedSender !== null && normalizedSender === normalizedMember;
+
+  return {
+    aiChecked: amountOk && dateOk,
+    aiCheckDetails: {
+      amount: { ok: amountOk, extracted: extracted.amount, expected: expectedAmount },
+      date: { ok: dateOk, extracted: extracted.transactionDate, bookingCreated: bookingCreatedAt },
+      receiver: { ok: receiverOk, extracted: extracted.receiverName },
+      sender: { ok: senderOk, extracted: extracted.senderPhone, member: memberPhone },
+    },
+    paymentMethod: extracted.paymentMethod,
+    detectedAmount: extracted.amount,
+  };
+}
 
 // ── Phone normalisation ───────────────────────────────────────────────────────
 
@@ -11,7 +118,6 @@ function normalizePhone(raw: string): string {
   const s = raw.replace('whatsapp:', '');
   try {
     if (isValidPhoneNumber(s)) return parsePhoneNumber(s).number;
-    // Local number without country code — try Nepal as default
     if (isValidPhoneNumber(s, 'NP')) return parsePhoneNumber(s, 'NP').number;
   } catch {
     // fall through
@@ -21,7 +127,6 @@ function normalizePhone(raw: string): string {
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 
-// Lazy so missing env vars throw inside the request handler (catchable) not at module load
 let _supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
   if (!_supabase) {
@@ -260,9 +365,9 @@ Rules:
 9. On first greeting, include an example: "Book court 2 for singles tomorrow at 7am, 1 hour".`;
 }
 
-// ── Main entry point ──────────────────────────────────────────────────────────
+// ── Bot core ──────────────────────────────────────────────────────────────────
 
-export async function processMessage(
+async function processMessage(
   body: string,
   from: string,
   mediaUrl: string | null,
@@ -283,7 +388,6 @@ export async function processMessage(
   }
 
   const memberName = member.name;
-
   const settings = await getSettings();
   const history = await getHistory(phone);
 
@@ -292,8 +396,6 @@ export async function processMessage(
       ? `[Payment screenshot attached]\n${body.trim()}`
       : '[Payment screenshot attached]'
     : body;
-
-  // Tools are created here so they close over `phone` and `mediaUrl`
 
   const checkAvailability = tool({
     description: 'Check which courts are free for a given date, start time, and duration.',
@@ -327,7 +429,6 @@ export async function processMessage(
         return { available: true, date, time, durationHours, courts: available, totalPrice: price };
       }
 
-      // Suggest up to 5 alternatives ±3 hours in 30-min increments
       const [y, mo, d] = date.split('-').map(Number);
       const preferred = new Date(y, mo - 1, d, startHour, 0);
       const alts: Array<{ date: string; time: string; courts: number[] }> = [];
@@ -376,7 +477,7 @@ export async function processMessage(
       const matchType = numPeople >= 4 ? 'doubles' : 'singles';
       const amount = (numPeople >= 4 ? s.price_doubles : s.price_singles) * durationHours;
 
-      const { data: member } = await getSupabase()
+      const { data: m } = await getSupabase()
         .from('members')
         .select('name')
         .eq('phone', phone)
@@ -387,7 +488,7 @@ export async function processMessage(
         .insert({
           ref,
           phone,
-          name: member?.name ?? phone,
+          name: m?.name ?? phone,
           court,
           date,
           time_label: timeLabel,
@@ -439,7 +540,7 @@ export async function processMessage(
         .from('bookings')
         .update({ status: 'Cancelled' })
         .eq('ref', ref)
-        .eq('phone', phone); // scoped to this user only
+        .eq('phone', phone);
       return error ? { success: false, error: error.message } : { success: true };
     },
   });
@@ -477,7 +578,6 @@ export async function processMessage(
     execute: async ({ ref }) => {
       if (!mediaUrl) return { error: 'No payment image found in this message.' };
 
-      // Resolve booking
       let bookingRef = ref;
       let expectedAmount: number;
       let bookingId: string;
@@ -510,7 +610,6 @@ export async function processMessage(
         bookingCreatedAt = (data.created_at as string).slice(0, 10);
       }
 
-      // Download image from Twilio (requires Basic auth)
       const auth =
         'Basic ' +
         Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
@@ -521,16 +620,13 @@ export async function processMessage(
       const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg';
       const ext = mimeType.includes('png') ? 'png' : 'jpg';
 
-      // Upload to Supabase Storage so admin can view it in admin.html
       const fileName = `${bookingId}-${Date.now()}.${ext}`;
       const { error: uploadErr } = await getSupabase().storage
         .from('payment-proofs')
         .upload(fileName, imgBuffer, { contentType: mimeType, upsert: true });
       if (uploadErr) return { error: 'Failed to store payment proof.' };
 
-      const {
-        data: { publicUrl },
-      } = getSupabase().storage.from('payment-proofs').getPublicUrl(fileName);
+      const { data: { publicUrl } } = getSupabase().storage.from('payment-proofs').getPublicUrl(fileName);
 
       const { aiChecked, aiCheckDetails, paymentMethod, detectedAmount } =
         await runPaymentCheck(imgBuffer, mimeType, expectedAmount, bookingCreatedAt, phone);
@@ -579,4 +675,43 @@ export async function processMessage(
   await saveHistory(phone, result.steps as StepLike[], userContent);
 
   return result.text || 'Sorry, something went wrong. Please try again.';
+}
+
+// ── Vercel handler ────────────────────────────────────────────────────────────
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function twiml(text: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeXml(text)}</Message></Response>`;
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).end();
+    return;
+  }
+
+  const body = req.body as Record<string, string>;
+  const from = body.From ?? '';
+  const text = body.Body ?? '';
+  const numMedia = parseInt(body.NumMedia ?? '0', 10);
+  const mediaUrl = numMedia > 0 ? (body.MediaUrl0 ?? null) : null;
+
+  res.setHeader('Content-Type', 'application/xml');
+
+  try {
+    const reply = await processMessage(text, from, mediaUrl);
+    res.send(twiml(reply));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Webhook error:', msg);
+    res.send(twiml(`Error: ${msg}`));
+  }
 }
