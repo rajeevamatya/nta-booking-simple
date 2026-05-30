@@ -1,6 +1,6 @@
 let HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19];
-const SUPABASE_URL  = 'https://njthghjidutnrrkxlfkv.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let CONFIG = {
   openFrom: 6, openTo: 19,

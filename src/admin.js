@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 
-const SUPABASE_URL = 'https://njthghjidutnrrkxlfkv.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_aPkJCYSzQWtTSeTETA5w8g_ZA1rtk3O';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let accessToken = null;
 let userEmail = '';

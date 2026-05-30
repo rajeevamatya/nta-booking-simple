@@ -130,9 +130,9 @@ function normalizePhone(raw: string): string {
 let _supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient {
   if (!_supabase) {
-    if (!process.env.SUPABASE_URL) throw new Error('SUPABASE_URL env var is not set');
+    if (!process.env.VITE_SUPABASE_URL) throw new Error('VITE_SUPABASE_URL env var is not set');
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY env var is not set');
-    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    _supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   }
   return _supabase;
 }
